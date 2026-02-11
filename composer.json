@@ -1,0 +1,19 @@
+{
+    "name": "tinymvc/orbit",
+    "description": "Backend Kit for TinyMVC Framework to Build a Panel, CRUD, FORMS, AUTH, and more",
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "Orbit\\": "src/"
+        },
+        "files": [
+            "./src/helpers.php"
+        ]
+    },
+    "authors": [
+        {
+            "name": "Shahin Moyshan",
+            "email": "shahin.moyshan2@gmail.com"
+        }
+    ]
+}
