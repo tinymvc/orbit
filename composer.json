@@ -4,7 +4,7 @@
     "license": "MIT",
     "autoload": {
         "psr-4": {
-            "Orbit\\": "src/"
+            "Orbit\\": "src/app/"
         },
         "files": [
             "./src/helpers.php"

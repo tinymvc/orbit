@@ -1,11 +1,11 @@
 # Installation
-It's recommended that you use [Composer](https://getcomposer.org/) to install this Backpack Kit.
+It's recommended that you use [Composer](https://getcomposer.org/) to install this orbit admin panel Kit.
 
 ```bash
 $ composer require tinymvc/orbit
 ```
 
-Then Register the Backpack Service Provider:
+Then Register the Orbit Service Provider:
 ```php
 <?php
 # bootstrap/providers.php
@@ -17,4 +17,4 @@ return [
 
 ```
 
-## Complete Doc is Coming Soon...
+**Complete Doc is Coming Soon...**
