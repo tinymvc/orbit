@@ -1,0 +1,39 @@
+{
+    "name": "tinymvc/skeleton",
+    "type": "project",
+    "description": "TinyMvc is a minimalist PHP framework to craft blazing-fast RESTful APIs and modern web apps.",
+    "keywords": ["shahinmoyshan", "tinymvc", "tinycore", "mvc", "web framework", "php framework", "framework"],
+    "license": "MIT",
+    "require": {
+        "php": ">=8.2",
+        "tinymvc/tinycore": "^2.2"
+    },
+    "authors": [
+        {
+            "name": "Shahin Moyshan",
+            "email": "shahin.moyshan2@gmail.com"
+        }
+    ],
+    "autoload": {
+        "psr-4": {
+            "App\\": "./app"
+        }
+    },
+    "suggest": {
+        "phpmailer/phpmailer": "Required for sending emails (^6.9).",
+        "league/commonmark": "Required to use Str::markdown() and Stringable::markdown() (^2.6).",
+        "voku/portable-ascii": "Required to use on Str::slug() with non-english strings (^2.0).,",
+        "ramsey/uuid": "Required to use Str::uuid() (^4.7)."
+    },
+    "scripts": {
+        "post-root-package-install": [
+            "@php -r \"file_exists('env.php') || copy('env.example.php', 'env.php');\""
+        ],
+        "post-create-project-cmd": [
+            "@php spark key:generate"
+        ]
+    },
+    "config": {
+        "optimize-autoloader": true
+    }
+}
