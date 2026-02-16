@@ -17,4 +17,5 @@ Route::get(
         'age' => 23,
     ])
 );
+
 Route::get('/', fn() => inertia('home'));
