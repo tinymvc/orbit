@@ -18,4 +18,4 @@ Route::get(
     ])
 );
 
-Route::get('/', fn() => inertia('home'));
+Route::inertia('/', 'home');
