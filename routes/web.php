@@ -10,12 +10,6 @@
 
 use Spark\Facades\Route;
 
-Route::get(
-    '/about',
-    fn() => inertia('about', [
-        'name' => 'Shahinul Islam',
-        'age' => 23,
-    ])
-);
+Route::inertia('/admin', 'admin/dashboard');
 
-Route::inertia('/', 'home');
+Route::get('/', fn() => dd('Hello World'));
