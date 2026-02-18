@@ -9,7 +9,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 
-import { Link } from "react-router";
+import { Link } from "@inertiajs/react";
 
 interface Notification {
   id: number;
@@ -173,7 +173,7 @@ export function Notifications() {
                       </p>
                       {notification.slug && (
                         <Link
-                          to={notification.slug}
+                          href={notification.slug}
                           className="h-auto p-0 text-sm text-primary hover:no-underline cursor-pointer"
                         >
                           View

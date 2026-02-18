@@ -14,12 +14,13 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import { useApp } from "@/contexts/dashboard";
+import { useApp } from "@/contexts/app";
+import { Eclipse } from "lucide-react";
 
 interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {}
 
 export function AppSidebar({ ...props }: AppSidebarProps) {
-  const { menu, user } = useApp();
+  const { app, menu, user } = useApp();
 
   return (
     <Sidebar collapsible="offcanvas" {...props}>
@@ -31,8 +32,8 @@ export function AppSidebar({ ...props }: AppSidebarProps) {
               className="data-[slot=sidebar-menu-button]:p-1.5!"
             >
               <Link href="/admin">
-                <img src="/favicon.ico" alt="Php App" className="size-5!" />
-                <span className="text-base font-bold">Php App</span>
+                <Eclipse className="size-5!" />
+                <span className="text-base font-bold">{app.name}</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>

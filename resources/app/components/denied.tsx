@@ -6,8 +6,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
-import { route } from "@/lib/utils";
-import { Link } from "react-router";
+import { Link } from "@inertiajs/react";
 
 export default function PermissionDenied() {
   return (
@@ -19,11 +18,11 @@ export default function PermissionDenied() {
         <EmptyTitle>Permission Denied</EmptyTitle>
         <EmptyDescription>
           You do not have permission to access this page. Please contact your
-          administrator or return to the <Link to={route("/")}>home</Link>.
+          administrator or return to the <Link href="/admin">Dashboard</Link>.
         </EmptyDescription>
       </EmptyHeader>
       <EmptyDescription>
-        Need help? <Link to={route("support")}>Contact support</Link>
+        Need help? <Link href="/support">Contact support</Link>
       </EmptyDescription>
     </Empty>
   );

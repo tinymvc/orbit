@@ -1,5 +1,5 @@
 import * as React from "react";
-import { useNavigate } from "react-router";
+import { router, useForm } from "@inertiajs/react";
 import {
   ChevronDown,
   ChevronLeft,
@@ -33,9 +33,6 @@ import {
   ColumnDef,
 } from "@tanstack/react-table";
 import { useDebounce } from "use-debounce";
-import type { UseMutationResult, UseQueryResult } from "@tanstack/react-query";
-import type { AxiosError } from "axios";
-import type { ApiResponse, PaginatedResponse } from "@/types/api";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -62,7 +59,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { useAuth } from "@/contexts/auth";
 import PermissionDenied from "@/components/denied";
 import {
   Sheet,
@@ -79,9 +75,32 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { headline } from "@/lib/utils";
+import { useApp } from "@/contexts/app";
 
-// Type definitions
-interface BreadConfig {
+// ─── Types ──────────────────────────────────────────────────────────────────
+
+/** Paginated response shape from the backend Paginator */
+export interface PaginatedData<T = Record<string, unknown>> {
+  data: T[];
+  pages: number;
+  page: number;
+  offset: number;
+  limit: number;
+  first_item: number;
+  last_item: number;
+  total: number;
+  keyword: string;
+  links: {
+    type: "previous" | "page" | "ellipsis" | "next";
+    url: string | null;
+    label: string | number;
+    active?: boolean;
+  }[];
+}
+
+export interface BreadConfig {
+  /** URL path for this resource, e.g. "/admin/users" */
+  url: string;
   title?: string;
   name: string;
   description?: string;
@@ -92,7 +111,9 @@ interface BreadConfig {
     delete?: string;
     edit?: string;
   };
+  /** Transform a record from the table into form data for editing */
   recordCallback: (record: Record<string, unknown>) => Record<string, unknown>;
+  /** Transform form data before submission */
   submitCallback: (
     formData: Record<string, unknown>,
   ) => Record<string, unknown>;
@@ -126,17 +147,11 @@ interface BreadDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   record: Record<string, unknown> | null;
-  createMutation: UseMutationResult<ApiResponse, AxiosError, unknown> | null;
-  updateMutation: UseMutationResult<
-    ApiResponse,
-    AxiosError,
-    { id: number; data: unknown }
-  > | null;
   FormFields: React.ComponentType<{
     formData: Record<string, unknown>;
     isEdit: boolean;
     handleChange: (field: string, value: unknown) => void;
-    formErrors: Record<string, string[]>;
+    formErrors: Record<string, string>;
   }>;
   config: BreadConfig;
   cannot: (permission: string) => boolean;
@@ -144,6 +159,8 @@ interface BreadDrawerProps {
 
 interface BreadProps<TData = Record<string, unknown>> {
   config: BreadConfig;
+  /** Paginated response passed as an Inertia page prop */
+  paginated: PaginatedData<TData>;
   columnsCallback: (params: {
     handleEdit: (record: TData) => void;
     handleDelete: (id: number) => void;
@@ -154,150 +171,94 @@ interface BreadProps<TData = Record<string, unknown>> {
     formData: Record<string, unknown>;
     isEdit: boolean;
     handleChange: (field: string, value: unknown) => void;
-    formErrors: Record<string, string[]>;
+    formErrors: Record<string, string>;
   }>;
-  fetchMutation: (
-    params: QueryParams,
-  ) => UseQueryResult<PaginatedResponse<TData>, AxiosError>;
-  deleteMutation: UseMutationResult<ApiResponse, AxiosError, number>;
-  createMutation: UseMutationResult<ApiResponse, AxiosError, unknown>;
-  updateMutation: UseMutationResult<
-    ApiResponse,
-    AxiosError,
-    { id: number; data: unknown }
-  >;
 }
 
-interface QueryParams {
-  page: number;
-  per_page: number;
-  search?: string;
-}
+// ─── Drawer Component ───────────────────────────────────────────────────────
 
-// Memoized Bread Drawer Component
 const BreadDrawer = React.memo<BreadDrawerProps>(
-  ({
-    isOpen,
-    onClose,
-    record,
-    createMutation,
-    updateMutation,
-    FormFields,
-    config,
-    cannot,
-  }) => {
+  ({ isOpen, onClose, record, FormFields, config, cannot }) => {
     const isMobile = useIsMobile();
-    const [formData, setFormData] = React.useState(config.defaultForm);
-    const [formErrors, setFormErrors] = React.useState<
-      Record<string, string[]>
-    >({});
-    const isSubmitting =
-      (createMutation && createMutation.isPending) ||
-      (updateMutation && updateMutation.isPending);
 
-    // Extract errors from mutation results
-    React.useEffect(() => {
-      const activeMutation = record ? updateMutation : createMutation;
-      if (activeMutation?.error) {
-        const axiosError = activeMutation.error as AxiosError<ApiResponse>;
-        const errors = axiosError.response?.data?.errors;
-        if (errors) {
-          setFormErrors(errors);
-        }
-      } else if (activeMutation?.isSuccess) {
-        setFormErrors({});
-      }
-    }, [
-      createMutation?.error,
-      updateMutation?.error,
-      createMutation?.isSuccess,
-      updateMutation?.isSuccess,
-      record,
-    ]);
+    const form = useForm(
+      (record
+        ? config.recordCallback(record)
+        : { ...config.defaultForm }) as any,
+    );
 
+    // Reset form data when record/open state changes
     React.useEffect(() => {
       if (isOpen) {
-        setFormErrors({}); // Clear errors when drawer opens
+        form.clearErrors();
         if (record) {
-          setFormData(config.recordCallback(record));
+          form.setDefaults(config.recordCallback(record));
+          form.reset();
         } else {
-          setFormData({ ...config.defaultForm });
+          form.setDefaults({ ...config.defaultForm });
+          form.reset();
         }
       }
     }, [record, isOpen]);
 
-    const handleChange = React.useCallback((field: string, value: unknown) => {
-      setFormData((prev: Record<string, unknown>) => ({
-        ...prev,
-        [field]: value,
-      }));
-    }, []);
-
-    const handleSubmit = React.useCallback(
-      async (e: React.FormEvent<HTMLFormElement>) => {
-        e.preventDefault();
-
-        try {
-          // Combine country code and phone number
-          const submitData = config.submitCallback(formData);
-
-          if (record?.id && updateMutation) {
-            await updateMutation.mutateAsync({
-              id: record.id as number,
-              data: submitData,
-            });
-          } else if (createMutation) {
-            await createMutation.mutateAsync(submitData);
-          }
-          onClose();
-        } catch (error) {
-          // Error handling is done in the mutation hooks
-          console.error("Form submission error:", error);
-        }
+    const handleChange = React.useCallback(
+      (field: string, value: unknown) => {
+        (form as any).setData(field, value);
       },
-      [formData, record?.id, onClose, createMutation, updateMutation, config],
+      [form],
     );
 
-    // permission create and edit check
+    const handleSubmit = React.useCallback(
+      (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+        const submitData = config.submitCallback(form.data);
+
+        const options = {
+          preserveScroll: true,
+          onSuccess: () => onClose(),
+        };
+
+        if (record?.id) {
+          router.put(`${config.url}/${record.id}`, submitData as any, options);
+        } else {
+          router.post(config.url, submitData as any, options);
+        }
+      },
+      [form.data, record?.id, onClose, config],
+    );
+
+    // Permission check
     if (
       (!record &&
-        config.permissions &&
-        config.permissions.create &&
+        config.permissions?.create &&
         cannot(config.permissions.create)) ||
-      (record &&
-        config.permissions &&
-        config.permissions.edit &&
-        cannot(config.permissions.edit))
+      (record && config.permissions?.edit && cannot(config.permissions.edit))
     ) {
-      return; // return nothing if no permission
+      return null;
     }
 
     const formContent = (
       <form onSubmit={handleSubmit} className="flex flex-col h-full">
         <div className="overflow-y-auto px-4 flex-1">
           <FormFields
-            formData={formData}
+            formData={form.data}
             isEdit={!!record}
             handleChange={handleChange}
-            formErrors={formErrors}
+            formErrors={form.errors as Record<string, string>}
           />
         </div>
 
         <div className="px-4 py-4 border-t mt-auto shrink-0">
           <div className="flex gap-2">
-            <Button
-              type="submit"
-              disabled={isSubmitting || false}
-              className="flex-1"
-            >
-              {isSubmitting ? "Saving..." : record ? "Update" : "Create"}
+            <Button type="submit" disabled={form.processing} className="flex-1">
+              {form.processing ? "Saving..." : record ? "Update" : "Create"}
             </Button>
             <Button
               variant="outline"
               type="button"
               onClick={onClose}
               className="flex-1"
-              disabled={isSubmitting || false}
+              disabled={form.processing}
             >
               Cancel
             </Button>
@@ -358,27 +319,28 @@ const BreadDrawer = React.memo<BreadDrawerProps>(
   },
 );
 
+// ─── Main BREAD Component ───────────────────────────────────────────────────
+
 export default function Bread<
   TData extends Record<string, unknown> = Record<string, unknown>,
->({
-  config,
-  columnsCallback,
-  FormFields,
-  fetchMutation,
-  deleteMutation,
-  createMutation,
-  updateMutation,
-}: BreadProps<TData>) {
-  const [pagination, setPagination] = React.useState({
-    pageIndex: 0,
-    pageSize: 10,
-  });
+>({ config, paginated, columnsCallback, FormFields }: BreadProps<TData>) {
+  // Derive pagination state from server response
+  const currentPage = paginated?.page ?? 1;
+  const pageSize = paginated?.limit ?? 10;
+  const totalPages = paginated?.pages ?? 0;
+  const totalItems = paginated?.total ?? 0;
+  const data = paginated?.data ?? [];
+
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnVisibility, setColumnVisibility] = React.useState(
     config.initialColumnVisibility || {},
   );
   const [rowSelection, setRowSelection] = React.useState({});
-  const [searchQuery, setSearchQuery] = React.useState("");
+  const [searchQuery, setSearchQuery] = React.useState(() => {
+    // Initialize from current URL params
+    const params = new URLSearchParams(window.location.search);
+    return params.get("search") || "";
+  });
   const [drawerOpen, setDrawerOpen] = React.useState(false);
   const [selectedRecord, setSelectedRecord] = React.useState<TData | null>(
     null,
@@ -387,115 +349,145 @@ export default function Bread<
   const [recordToDelete, setRecordToDelete] = React.useState<number | null>(
     null,
   );
+  const [isDeleting, setIsDeleting] = React.useState(false);
 
-  const { can, cannot } = useAuth();
+  const { can, cannot } = useApp();
 
-  // Debounce search query with use-debounce library
+  // Debounce search query
   const [debouncedSearchQuery] = useDebounce(searchQuery, 500);
 
-  // Build query params
-  const queryParams = React.useMemo((): QueryParams => {
-    const params: QueryParams = {
-      page: pagination.pageIndex + 1,
-      per_page: pagination.pageSize,
-    };
+  // Reload data when search query changes
+  const isFirstRender = React.useRef(true);
+  React.useEffect(() => {
+    // Skip the initial render to avoid a redundant request
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
 
+    const params: Record<string, string | number> = {
+      page: 1,
+      per_page: pageSize,
+    };
     if (debouncedSearchQuery) {
       params.search = debouncedSearchQuery;
     }
 
-    return params;
-  }, [pagination.pageIndex, pagination.pageSize, debouncedSearchQuery]);
+    router.get(config.url, params, {
+      preserveState: true,
+      preserveScroll: true,
+      replace: true,
+    });
+  }, [debouncedSearchQuery]);
 
-  // Use TanStack Query for data fetching
-  const { data: response, isLoading } = fetchMutation(queryParams);
-
-  // permission check
-  if (
-    config.permissions &&
-    config.permissions.browse &&
-    cannot(config.permissions.browse)
-  ) {
+  // Permission check
+  if (config.permissions?.browse && cannot(config.permissions.browse)) {
     return <PermissionDenied />;
   }
 
-  // Extract data from response
-  const data = response?.data || [];
-  const totalPages = response?.last_page || 0;
-  const totalItems = response?.total || 0;
+  // ─── Handlers ───────────────────────────────────────────────────────
 
   const handleDelete = React.useCallback((id: number) => {
     setRecordToDelete(id);
     setDeleteDialogOpen(true);
   }, []);
 
-  const confirmDelete = React.useCallback(async () => {
+  const confirmDelete = React.useCallback(() => {
     if (!recordToDelete) return;
+    setIsDeleting(true);
 
-    try {
-      await deleteMutation.mutateAsync(recordToDelete);
-    } catch (error) {
-      // Error handling is done in the mutation hook
-      console.error("Delete error:", error);
-    } finally {
-      setDeleteDialogOpen(false);
-      setRecordToDelete(null);
-    }
-  }, [recordToDelete, deleteMutation]);
-
-  const navigate = useNavigate();
+    router.delete(`${config.url}/${recordToDelete}`, {
+      preserveScroll: true,
+      onFinish: () => {
+        setIsDeleting(false);
+        setDeleteDialogOpen(false);
+        setRecordToDelete(null);
+      },
+    });
+  }, [recordToDelete, config.url]);
 
   const handleEdit = React.useCallback(
     (record: TData) => {
       if (config.routing?.enabled && record.id) {
-        navigate(config.routing.editPath(record.id as number));
+        router.visit(config.routing.editPath(record.id as number));
       } else {
         setSelectedRecord(record);
         setDrawerOpen(true);
       }
     },
-    [config.routing, navigate],
+    [config.routing],
   );
 
   const handleCreate = React.useCallback(() => {
     if (config.routing?.enabled) {
-      navigate(config.routing.createPath);
+      router.visit(config.routing.createPath);
     } else {
       setSelectedRecord(null);
       setDrawerOpen(true);
     }
-  }, [config.routing, navigate]);
+  }, [config.routing]);
 
   const handleSearchChange = React.useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       setSearchQuery(e.target.value);
-      setPagination((prev) => ({ ...prev, pageIndex: 0 }));
     },
     [],
   );
 
-  const handlePageSizeChange = React.useCallback((value: string) => {
-    setPagination({
-      pageIndex: 0,
-      pageSize: Number(value),
-    });
-  }, []);
+  const handlePageChange = React.useCallback(
+    (newPage: number) => {
+      const params: Record<string, string | number> = {
+        page: newPage,
+        per_page: pageSize,
+      };
+      if (debouncedSearchQuery) {
+        params.search = debouncedSearchQuery;
+      }
+
+      router.get(config.url, params, {
+        preserveState: true,
+        preserveScroll: true,
+        replace: true,
+      });
+    },
+    [pageSize, debouncedSearchQuery, config.url],
+  );
+
+  const handlePageSizeChange = React.useCallback(
+    (value: string) => {
+      const params: Record<string, string | number> = {
+        page: 1,
+        per_page: Number(value),
+      };
+      if (debouncedSearchQuery) {
+        params.search = debouncedSearchQuery;
+      }
+
+      router.get(config.url, params, {
+        preserveState: true,
+        preserveScroll: true,
+        replace: true,
+      });
+    },
+    [debouncedSearchQuery, config.url],
+  );
 
   const handleCloseDrawer = React.useCallback(() => {
     setDrawerOpen(false);
     setSelectedRecord(null);
   }, []);
 
-  // Memoize columns with stable references
+  // ─── Table setup ────────────────────────────────────────────────────
+
   const columns = React.useMemo(() => {
     const baseColumns = columnsCallback({
       handleEdit,
       handleDelete,
       handleCreate,
       can: {
-        delete: !config.permissions?.delete || can(config.permissions.delete),
-        edit: !config.permissions?.edit || can(config.permissions.edit),
-        create: !config.permissions?.create || can(config.permissions.create),
+        delete: !config.permissions?.delete || !!can(config.permissions.delete),
+        edit: !config.permissions?.edit || !!can(config.permissions.edit),
+        create: !config.permissions?.create || !!can(config.permissions.create),
       },
     });
 
@@ -551,7 +543,6 @@ export default function Bread<
     getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
     onSortingChange: setSorting,
-    onPaginationChange: setPagination,
     onColumnVisibilityChange: setColumnVisibility,
     onRowSelectionChange: setRowSelection,
     enableRowSelection: true,
@@ -560,34 +551,28 @@ export default function Bread<
     pageCount: totalPages,
     state: {
       sorting,
-      pagination,
+      pagination: { pageIndex: currentPage - 1, pageSize },
       columnVisibility,
       rowSelection,
     },
   });
 
-  const canGoPrevious = pagination.pageIndex > 0;
-  const canGoNext = pagination.pageIndex < totalPages - 1;
-  const startItem =
-    data.length > 0 ? pagination.pageIndex * pagination.pageSize + 1 : 0;
-  const endItem = Math.min(
-    (pagination.pageIndex + 1) * pagination.pageSize,
-    totalItems,
-  );
+  const canGoPrevious = currentPage > 1;
+  const canGoNext = currentPage < totalPages;
+  const startItem = data.length > 0 ? (currentPage - 1) * pageSize + 1 : 0;
+  const endItem = Math.min(currentPage * pageSize, totalItems);
 
-  // Get selected row IDs
+  // Bulk selection
   const selectedRows = table.getFilteredSelectedRowModel().rows;
   const selectedCount = selectedRows.length;
   const selectedIds = selectedRows.map((row) => Number(row.id));
 
-  // Handle bulk actions
   const handleBulkAction = React.useCallback(
     async (action: NonNullable<typeof config.bulkActions>[0]) => {
       if (selectedIds.length === 0) return;
 
       try {
         await action.callback(selectedIds);
-        // Clear selection after successful action
         setRowSelection({});
       } catch (error) {
         console.error("Bulk action error:", error);
@@ -666,8 +651,7 @@ export default function Bread<
               <config.customActions />
             ) : (
               !config.disabled?.includes("add_record") &&
-              (!config.permissions ||
-                !config.permissions.create ||
+              (!config.permissions?.create ||
                 can(config.permissions.create)) && (
                 <Button onClick={handleCreate}>
                   <Plus className="size-4" />
@@ -750,16 +734,7 @@ export default function Bread<
               ))}
             </TableHeader>
             <TableBody>
-              {isLoading ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={columns.length}
-                    className="h-24 text-center"
-                  >
-                    <Loader2 className="mx-auto animate-spin opacity-50" />
-                  </TableCell>
-                </TableRow>
-              ) : table.getRowModel().rows?.length ? (
+              {table.getRowModel().rows?.length ? (
                 table.getRowModel().rows.map((row) => (
                   <TableRow key={row.id}>
                     {row.getVisibleCells().map((cell) => (
@@ -795,31 +770,29 @@ export default function Bread<
             <div className="hidden lg:flex items-center space-x-2">
               <p className="text-sm font-medium">Rows per page</p>
               <Select
-                value={`${pagination.pageSize}`}
+                value={`${pageSize}`}
                 onValueChange={handlePageSizeChange}
               >
                 <SelectTrigger className="h-8 w-17.5">
-                  <SelectValue placeholder={pagination.pageSize} />
+                  <SelectValue placeholder={pageSize} />
                 </SelectTrigger>
                 <SelectContent side="top">
-                  {[10, 20, 30, 40, 50].map((pageSize) => (
-                    <SelectItem key={pageSize} value={`${pageSize}`}>
-                      {pageSize}
+                  {[10, 20, 30, 40, 50].map((size) => (
+                    <SelectItem key={size} value={`${size}`}>
+                      {size}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             <div className="flex items-center justify-center text-sm font-medium min-w-25">
-              Page {pagination.pageIndex + 1} of {totalPages || 1}
+              Page {currentPage} of {totalPages || 1}
             </div>
             <div className="flex items-center space-x-2">
               <Button
                 variant="outline"
                 className="hidden h-8 w-8 p-0 lg:flex"
-                onClick={() =>
-                  setPagination((prev) => ({ ...prev, pageIndex: 0 }))
-                }
+                onClick={() => handlePageChange(1)}
                 disabled={!canGoPrevious}
               >
                 <span className="sr-only">Go to first page</span>
@@ -828,12 +801,7 @@ export default function Bread<
               <Button
                 variant="outline"
                 className="h-8 w-8 p-0"
-                onClick={() =>
-                  setPagination((prev) => ({
-                    ...prev,
-                    pageIndex: prev.pageIndex - 1,
-                  }))
-                }
+                onClick={() => handlePageChange(currentPage - 1)}
                 disabled={!canGoPrevious}
               >
                 <span className="sr-only">Go to previous page</span>
@@ -842,12 +810,7 @@ export default function Bread<
               <Button
                 variant="outline"
                 className="h-8 w-8 p-0"
-                onClick={() =>
-                  setPagination((prev) => ({
-                    ...prev,
-                    pageIndex: prev.pageIndex + 1,
-                  }))
-                }
+                onClick={() => handlePageChange(currentPage + 1)}
                 disabled={!canGoNext}
               >
                 <span className="sr-only">Go to next page</span>
@@ -856,12 +819,7 @@ export default function Bread<
               <Button
                 variant="outline"
                 className="hidden h-8 w-8 p-0 lg:flex"
-                onClick={() =>
-                  setPagination((prev) => ({
-                    ...prev,
-                    pageIndex: totalPages - 1,
-                  }))
-                }
+                onClick={() => handlePageChange(totalPages)}
                 disabled={!canGoNext}
               >
                 <span className="sr-only">Go to last page</span>
@@ -872,50 +830,47 @@ export default function Bread<
         </div>
       </div>
 
-      {!config.routing?.enabled &&
-        FormFields &&
-        (createMutation || updateMutation) && (
-          <BreadDrawer
-            isOpen={drawerOpen}
-            onClose={handleCloseDrawer}
-            record={selectedRecord}
-            createMutation={createMutation}
-            updateMutation={updateMutation}
-            FormFields={FormFields}
-            config={config}
-            cannot={cannot}
-          />
-        )}
+      {!config.routing?.enabled && FormFields && (
+        <BreadDrawer
+          isOpen={drawerOpen}
+          onClose={handleCloseDrawer}
+          record={selectedRecord}
+          FormFields={FormFields}
+          config={config}
+          cannot={cannot}
+        />
+      )}
 
-      {deleteMutation &&
-        (!config.permissions ||
-          !config.permissions.delete ||
-          can(config.permissions.delete)) && (
-          <AlertDialog
-            open={deleteDialogOpen}
-            onOpenChange={setDeleteDialogOpen}
-          >
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>
-                  {config?.translations?.delete || "Are you absolutely sure?"}
-                </AlertDialogTitle>
-                <AlertDialogDescription>
-                  {config?.translations?.delete_description ||
-                    `This action cannot be undone. This will permanently delete the ${config.name.toLowerCase()} and remove it from our servers.`}
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>
-                  {config?.translations?.delete_no || "Cancel"}
-                </AlertDialogCancel>
-                <AlertDialogAction onClick={confirmDelete}>
-                  {config?.translations?.delete_yes || "Yes, Delete"}
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        )}
+      {(!config.permissions?.delete || can(config.permissions.delete)) && (
+        <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>
+                {config?.translations?.delete || "Are you absolutely sure?"}
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                {config?.translations?.delete_description ||
+                  `This action cannot be undone. This will permanently delete the ${config.name.toLowerCase()} and remove it from our servers.`}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={isDeleting}>
+                {config?.translations?.delete_no || "Cancel"}
+              </AlertDialogCancel>
+              <AlertDialogAction onClick={confirmDelete} disabled={isDeleting}>
+                {isDeleting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  config?.translations?.delete_yes || "Yes, Delete"
+                )}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
     </>
   );
 }

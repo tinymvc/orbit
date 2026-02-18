@@ -3,16 +3,25 @@ import "./app.css";
 import { createInertiaApp } from "@inertiajs/react";
 import { createRoot } from "react-dom/client";
 
+import { AppProvider } from "@/contexts/app";
 import Dashboard from "@/layouts/dashboard";
 
 createInertiaApp({
   resolve: (name) => {
     const pages = import.meta.glob("./pages/**/*.tsx", { eager: true });
-    const page = pages[`./pages/${name}.tsx`];
+    const page = pages[`./pages/${name}.tsx`] as any;
 
-    page.default.layout = name.startsWith("admin/")
-      ? undefined
-      : (page: React.ReactNode) => <Dashboard children={page} />;
+    if (name.startsWith("admin/")) {
+      page.default.layout = (pageContent: React.ReactNode) => (
+        <AppProvider>
+          <Dashboard>{pageContent}</Dashboard>
+        </AppProvider>
+      );
+    } else {
+      page.default.layout = (pageContent: React.ReactNode) => (
+        <AppProvider>{pageContent}</AppProvider>
+      );
+    }
 
     return page;
   },

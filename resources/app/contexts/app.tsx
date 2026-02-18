@@ -1,47 +1,47 @@
 import { createContext, useContext, useMemo, ReactNode } from "react";
 
 import { Users, CircleGauge, Settings, type LucideIcon } from "lucide-react";
+import { usePage } from "@inertiajs/react";
+import { ThemeProvider } from "next-themes";
+import { Toaster } from "@/components/ui/sonner";
 
-import type {
-  DashboardContextValue,
-  MenuItem,
-  Menu,
-  CurrentMenu,
-} from "@/types/context";
+import type { AppContextValue, MenuItem, Menu } from "@/types/context";
 
-export const DashboardContext = createContext<DashboardContextValue | null>(
-  null,
-);
+export const AppContext = createContext<AppContextValue | null>(null);
 
-export const useDashboard = (): DashboardContextValue => {
-  const context = useContext(DashboardContext);
+export const useApp = (): AppContextValue => {
+  const context = useContext(AppContext);
   if (!context) {
-    throw new Error("useDashboard must be used within an DashboardProvider");
+    throw new Error("useApp must be used within an AppProvider");
   }
   return context;
 };
 
-export const DashboardProvider = ({ children }: { children: ReactNode }) => {
-  const canAny = (permissions: string[]): boolean => {
-    return true; // Placeholder: allow all permissions for now
-  };
+// Inner provider that uses usePage (must be inside Inertia's App component)
+const AppContextProvider = ({ children }: { children: ReactNode }) => {
+  const { props } = usePage<{ app: AppConfig; auth: { user: User | null } }>();
 
-  const can = (permission: string): boolean => {
-    return true; // Placeholder: allow all permissions for now
-  };
+  const isAuthenticated = (): boolean =>
+    !!props.auth.user && props.auth.user.id > 0;
 
-  const cannot = (permission: string): boolean => {
-    return false; // Placeholder: allow all permissions for now
-  };
+  const can = (permission: string): boolean | null | undefined =>
+    isAuthenticated() &&
+    props.auth.user &&
+    props.auth.user?.privileges &&
+    props.auth.user.privileges.includes(permission);
 
-  const user = {
-    id: "123",
-    name: "John Doe",
-    email: "john.doe@example.com",
-  };
+  const canAny = (permissions: string[]): boolean =>
+    permissions.some(
+      (permission) =>
+        isAuthenticated() &&
+        props.auth?.user?.privileges &&
+        props.auth.user.privileges.includes(permission),
+    );
 
-  const filterMenuItemsByPermissions = (menuItems: MenuItem[]): MenuItem[] => {
-    return menuItems
+  const cannot = (permission: string): boolean => !can(permission);
+
+  const filterMenuItemsByPermissions = (menuItems: MenuItem[]): MenuItem[] =>
+    menuItems
       .filter((item) => !item.permission || canAny(item.permission))
       .map((item) => {
         if (item.items) {
@@ -52,19 +52,18 @@ export const DashboardProvider = ({ children }: { children: ReactNode }) => {
         }
         return item;
       });
-  };
 
   const menu: Menu = {
     navMain: filterMenuItemsByPermissions([
       {
         title: "Dashboard",
-        url: "/",
+        url: "/admin",
         icon: CircleGauge,
         permission: ["dashboard.overview"],
       },
       {
         title: "Users",
-        url: "/users",
+        url: "/admin/users",
         icon: Users,
         permission: ["users.browse"],
       },
@@ -72,7 +71,7 @@ export const DashboardProvider = ({ children }: { children: ReactNode }) => {
     navSecondary: filterMenuItemsByPermissions([
       {
         title: "Settings",
-        url: "/settings",
+        url: "/admin/settings",
         icon: Settings,
         permission: ["settings.smtp"],
       },
@@ -80,7 +79,7 @@ export const DashboardProvider = ({ children }: { children: ReactNode }) => {
     hidden: [
       {
         title: "Profile",
-        url: "/profile",
+        url: "/admin/profile",
       },
     ],
   };
@@ -94,7 +93,7 @@ export const DashboardProvider = ({ children }: { children: ReactNode }) => {
   const findActiveMenuItem = (
     items: MenuItem[],
     parentIcon?: LucideIcon | null,
-  ): CurrentMenu | null => {
+  ): MenuItem | null => {
     for (const item of items) {
       const icon = item.icon || parentIcon || null;
 
@@ -149,7 +148,7 @@ export const DashboardProvider = ({ children }: { children: ReactNode }) => {
     return null;
   };
 
-  const currentMenu: CurrentMenu = useMemo(() => {
+  const currentMenuItem: MenuItem = useMemo(() => {
     // Check main navigation
     const mainNavMatch = findActiveMenuItem(menu.navMain || []);
     if (mainNavMatch) return mainNavMatch;
@@ -162,69 +161,34 @@ export const DashboardProvider = ({ children }: { children: ReactNode }) => {
     const hiddenNavMatch = findActiveMenuItem(menu.hidden || []);
     if (hiddenNavMatch) return hiddenNavMatch;
 
-    // Check documents
-    for (const item of menu.documents || []) {
-      if (isActive(item.url)) {
-        return {
-          title: item.name,
-          url: item.url || "/",
-          icon: item.icon,
-        };
-      }
-    }
-
     // Default to Dashboard
     return {
       title: "Dashboard",
-      url: "/",
+      url: "/admin",
       icon: CircleGauge,
     };
   }, [location.pathname, menu]);
 
-  const getFirstPermittedMenuItem = (): string | null => {
-    const allMenuItems = [...menu.navMain, ...(menu.navSecondary || [])];
-    for (const item of allMenuItems) {
-      if (!item.permission || canAny(item.permission)) {
-        if (item.items) {
-          for (const subItem of item.items) {
-            if (
-              subItem.url &&
-              (!subItem.permission || canAny(subItem.permission))
-            ) {
-              return subItem.url;
-            }
-          }
-        }
-
-        if (item.url) return item.url;
-      }
-    }
-    return null; // No permitted menu item found
-  };
-
-  const redirectToFirstPermittedMenuItem = (): boolean | void => {
-    const firstPermittedMenuItem = getFirstPermittedMenuItem();
-    if (firstPermittedMenuItem) {
-      // navigate(firstPermittedMenuItem);
-      return;
-    }
-    return false;
-  };
-
   // Context value to be provided to children components
-  const value: DashboardContextValue = {
+  const value: AppContextValue = {
+    app: props.app,
     menu,
-    currentMenu,
-    user,
+    currentMenuItem,
+    user: props.auth.user || null,
+    isAuthenticated,
     can,
     cannot,
     canAny,
-    redirectToFirstMenu: redirectToFirstPermittedMenuItem,
   };
 
+  return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
+};
+
+export const AppProvider = ({ children }: { children: ReactNode }) => {
   return (
-    <DashboardContext.Provider value={value}>
-      {children}
-    </DashboardContext.Provider>
+    <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+      <AppContextProvider>{children}</AppContextProvider>
+      <Toaster position="top-center" />
+    </ThemeProvider>
   );
 };

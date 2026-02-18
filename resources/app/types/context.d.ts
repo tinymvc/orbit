@@ -3,8 +3,8 @@ import type { LucideIcon } from "lucide-react";
 // App Context Types
 export interface MenuItem {
   title: string;
-  url?: string;
-  icon?: LucideIcon;
+  url: string;
+  icon?: LucideIcon | null;
   permission?: string[];
   items?: SubMenuItem[];
   children?: SubMenuItem[];
@@ -17,27 +17,19 @@ export interface SubMenuItem {
   children?: SubMenuItem[];
 }
 
-export interface DocumentItem {
-  name: string;
-  url: string;
-  icon: LucideIcon;
-}
-
 export interface Menu {
   navMain: MenuItem[];
   navSecondary?: MenuItem[];
-  documents?: DocumentItem[];
-  hidden: MenuItem[];
+  hidden?: MenuItem[];
 }
 
-export interface CurrentMenu {
-  title: string;
-  url: string;
-  icon: LucideIcon | null;
-}
-
-export interface DashboardContextValue {
+export interface AppContextValue {
+  app: AppConfig;
   menu: Menu;
-  currentMenu: CurrentMenu;
-  redirectToFirstMenu: () => boolean | void;
+  currentMenuItem: MenuItem;
+  user: User | null;
+  isAuthenticated: () => boolean;
+  can: (permission: string) => boolean | null | undefined;
+  cannot: (permission: string) => boolean;
+  canAny: (permissions: string[]) => boolean;
 }

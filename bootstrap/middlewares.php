@@ -13,4 +13,6 @@ return [
     'cors' => \App\Http\Middlewares\CorsControl::class,
     'csrf' => \App\Http\Middlewares\CsrfProtectionMiddleware::class,
     'throttle' => \App\Http\Middlewares\ThrottleMiddleware::class,
+    'auth' => \App\Http\Middlewares\AuthMiddleware::class,
+    'guest' => \App\Http\Middlewares\GuestMiddleware::class,
 ];

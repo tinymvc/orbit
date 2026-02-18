@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use Inertia\Facades\Inertia;
 use Spark\Foundation\Providers\ServiceProvider;
 
 /**
@@ -18,6 +19,13 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
-        // i am bootstrapping services
+        // Sharing the application name with all Inertia views
+        Inertia::share([
+            'app' => [
+                'name' => config('app.name', 'TinyMvc'),
+                'timezone' => config('app.timezone', 'UTC'),
+                'locale' => config('lang', 'en'),
+            ],
+        ]);
     }
 }

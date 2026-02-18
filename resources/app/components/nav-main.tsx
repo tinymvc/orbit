@@ -1,4 +1,4 @@
-import { useLocation, Link } from "react-router";
+import { Link, usePage } from "@inertiajs/react";
 import {
   Collapsible,
   CollapsibleContent,
@@ -24,13 +24,14 @@ interface NavMainProps {
 }
 
 export function NavMain({ items }: NavMainProps) {
-  const location = useLocation();
+  const { url } = usePage();
+  const pathname = url.split("?")[0] || "";
 
-  const isActive = (url?: string): boolean =>
-    (!!url && location.pathname === url) ||
-    (!!url &&
-      url.includes(":") &&
-      location.pathname.startsWith(url.split("/:")[0] || ""));
+  const isActive = (itemUrl?: string): boolean =>
+    (!!itemUrl && pathname === itemUrl) ||
+    (!!itemUrl &&
+      itemUrl.includes(":") &&
+      pathname.startsWith(itemUrl.split("/:")[0] || ""));
 
   const hasActiveGrandChild = (items: SubMenuItem[]): boolean =>
     items?.some((child) => isActive(child.url)) ?? false;
@@ -38,7 +39,7 @@ export function NavMain({ items }: NavMainProps) {
   const hasActiveChild = (items: SubMenuItem[]): boolean =>
     items?.some(
       (subItem) =>
-        isActive(subItem.url) || hasActiveGrandChild(subItem.children || [])
+        isActive(subItem.url) || hasActiveGrandChild(subItem.children || []),
     ) ?? false;
 
   return (
@@ -75,7 +76,7 @@ export function NavMain({ items }: NavMainProps) {
                               hasActiveGrandChild(subItem.children || [])
                             }
                           >
-                            <Link to={subItem.url}>
+                            <Link href={subItem.url || "#"}>
                               <span>{subItem.title}</span>
                             </Link>
                           </SidebarMenuSubButton>
@@ -94,13 +95,13 @@ export function NavMain({ items }: NavMainProps) {
                     isActive(item.url) || hasActiveChild(item.children || [])
                   }
                 >
-                  <Link to={item.url || "#"}>
+                  <Link href={item.url || "#"}>
                     {item.icon && <item.icon />}
                     <span>{item.title}</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
-            )
+            ),
           )}
         </SidebarMenu>
       </SidebarGroupContent>

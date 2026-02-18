@@ -8,8 +8,22 @@
  * which is a facade for the Hyper\Router class.
  */
 
+use App\Http\Controllers\{
+    AuthController,
+    UsersController
+};
 use Spark\Facades\Route;
 
-Route::inertia('/admin', 'admin/dashboard');
+Route::match(['get', 'post'], '/admin/login', [AuthController::class, 'login'])
+    ->middleware('guest');
+
+Route::group(function () {
+    Route::inertia('/', 'admin/dashboard');
+    Route::post('/logout', [AuthController::class, 'logout']);
+    Route::resource('users', UsersController::class)
+        ->except(['create', 'edit', 'show']);
+})
+    ->middleware('auth')
+    ->prefix('admin');
 
 Route::get('/', fn() => dd('Hello World'));

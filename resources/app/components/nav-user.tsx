@@ -1,7 +1,6 @@
-import { MoreVertical, LogOut, Bell, UserCircle } from "lucide-react";
+import { MoreVertical, Bell, UserCircle, LogOut } from "lucide-react";
 
-import { Link } from "react-router";
-import { route } from "@/lib/utils";
+import { Link, useForm } from "@inertiajs/react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -18,7 +17,6 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { useAuth } from "@/contexts/auth";
 
 interface NavUserProps {
   user: {
@@ -31,11 +29,11 @@ interface NavUserProps {
 export function NavUser({ user }: NavUserProps) {
   const { isMobile } = useSidebar();
 
-  const { logout } = useAuth();
+  const { post, processing } = useForm();
 
   const handleLogout = async () => {
     try {
-      await logout.mutateAsync();
+      post("/admin/logout");
     } catch (error) {
       console.error("Logout error:", error);
     }
@@ -90,7 +88,7 @@ export function NavUser({ user }: NavUserProps) {
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
               <DropdownMenuItem asChild>
-                <Link to={route("profile")}>
+                <Link href="/profile">
                   <UserCircle />
                   Profile
                 </Link>
@@ -101,12 +99,9 @@ export function NavUser({ user }: NavUserProps) {
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onSelect={handleLogout}
-              disabled={logout.isPending}
-            >
+            <DropdownMenuItem onSelect={handleLogout} disabled={processing}>
               <LogOut />
-              {logout.isPending ? "Logging out..." : "Log out"}
+              {processing ? "Logging out..." : "Log out"}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
