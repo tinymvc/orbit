@@ -23,7 +23,7 @@ export function AppSidebar({ ...props }: AppSidebarProps) {
   const { app, menu, user } = useApp();
 
   return (
-    <Sidebar collapsible="offcanvas" {...props}>
+    <Sidebar {...props}>
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>

@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use Spark\Http\Request;
 
-
 class UsersController extends Controller
 {
     public function index(Request $request)
@@ -42,7 +41,7 @@ class UsersController extends Controller
             ])
         );
 
-        if ($user->wasChanged()) {
+        if ($user->wasCreated()) {
             return back()->with('success', 'User created successfully.');
         }
 

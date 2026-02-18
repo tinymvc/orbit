@@ -209,7 +209,7 @@ const BreadDrawer = React.memo<BreadDrawerProps>(
     );
 
     const handleSubmit = React.useCallback(
-      (e: React.FormEvent<HTMLFormElement>) => {
+      (e: React.SyntheticEvent) => {
         e.preventDefault();
         const submitData = config.submitCallback(form.data);
 

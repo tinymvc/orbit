@@ -22,7 +22,8 @@ export default function PermissionDenied() {
         </EmptyDescription>
       </EmptyHeader>
       <EmptyDescription>
-        Need help? <Link href="/support">Contact support</Link>
+        Need help?{" "}
+        <a href="mailto:shahin.moyshan2@gmail.com">Contact support</a>
       </EmptyDescription>
     </Empty>
   );

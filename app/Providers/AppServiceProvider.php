@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Security\Privileges;
 use Inertia\Facades\Inertia;
 use Spark\Foundation\Providers\ServiceProvider;
 
@@ -27,5 +28,7 @@ class AppServiceProvider extends ServiceProvider
                 'locale' => config('lang', 'en'),
             ],
         ]);
+
+        Privileges::register(); // Registering the application's privileges
     }
 }

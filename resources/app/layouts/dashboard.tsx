@@ -15,7 +15,7 @@ export default function ({ children }: { children: React.ReactNode }) {
           } as React.CSSProperties
         }
       >
-        <AppSidebar variant="inset" />
+        <AppSidebar collapsible="icon" variant="inset" />
         <SidebarInset className="flex flex-col overflow-hidden">
           <SiteHeader />
           <div className="flex flex-1 flex-col overflow-hidden">
