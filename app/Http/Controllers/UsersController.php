@@ -19,6 +19,10 @@ class UsersController extends Controller
                     ['search' => '%' . $request->input('search') . '%']
                 )
             )
+            ->when(
+                $request->has('status'),
+                fn($query) => $query->where('status', $request->input('status'))
+            )
             ->paginate($request->input('per_page', 10));
 
         return inertia('admin/users', [
@@ -42,10 +46,14 @@ class UsersController extends Controller
         );
 
         if ($user->wasCreated()) {
-            return back()->with('success', 'User created successfully.');
+            return inertia()
+                ->back()
+                ->with('success', 'User created successfully.');
         }
 
-        return back()->with('error', 'Failed to create user.');
+        return inertia()
+            ->back()
+            ->with('error', 'Failed to create user.');
     }
 
     public function update(int $id, Request $request)
@@ -65,10 +73,14 @@ class UsersController extends Controller
         $user->fill($input->filter());
 
         if ($user->save()) {
-            return back()->with('success', 'User updated successfully.');
+            return inertia()
+                ->back()
+                ->with('success', 'User updated successfully.');
         }
 
-        return back()->with('error', 'Failed to update user.');
+        return inertia()
+            ->back()
+            ->with('error', 'Failed to update user.');
     }
 
     public function destroy(int $id)
@@ -77,6 +89,8 @@ class UsersController extends Controller
 
         User::destroy($id);
 
-        return back()->with('success', 'User deleted successfully.');
+        return inertia()
+            ->back()
+            ->with('success', 'User deleted successfully.');
     }
 }

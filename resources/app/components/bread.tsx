@@ -1,5 +1,5 @@
 import * as React from "react";
-import { router, useForm } from "@inertiajs/react";
+import { router } from "@inertiajs/react";
 import {
   ChevronDown,
   ChevronLeft,
@@ -7,10 +7,15 @@ import {
   ChevronsLeft,
   ChevronsRight,
   Columns3,
+  ListFilter,
+  MoreVertical,
+  Pencil,
   Plus,
   Search,
   Loader2,
   EllipsisVertical,
+  Trash2,
+  X,
 } from "lucide-react";
 import {
   AlertDialog,
@@ -74,6 +79,14 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
 import { headline } from "@/lib/utils";
 import { useApp } from "@/contexts/app";
 
@@ -98,6 +111,26 @@ export interface PaginatedData<T = Record<string, unknown>> {
   }[];
 }
 
+/** Filter definition for the Bread component */
+export interface BreadFilter {
+  /** Query parameter key sent to the server */
+  key: string;
+  /** Display label */
+  label: string;
+  /** Available options */
+  options: { value: string; label: string }[];
+}
+
+/** Props for the reusable BreadActionsCell component */
+export interface BreadActionsCellProps<TData = Record<string, unknown>> {
+  record: TData;
+  onEdit: (record: TData) => void;
+  onDelete: (id: number) => void;
+  can: { edit: boolean; delete: boolean };
+  /** Optional extra menu items rendered before edit/delete */
+  extraItems?: React.ReactNode;
+}
+
 export interface BreadConfig {
   /** URL path for this resource, e.g. "/admin/users" */
   url: string;
@@ -105,6 +138,8 @@ export interface BreadConfig {
   name: string;
   description?: string;
   defaultForm: Record<string, unknown>;
+  /** Define server-side filters shown as dropdowns */
+  filters?: BreadFilter[];
   permissions?: {
     browse?: string;
     create?: string;
@@ -175,47 +210,118 @@ interface BreadProps<TData = Record<string, unknown>> {
   }>;
 }
 
+// ─── Reusable Actions Cell ──────────────────────────────────────────────────
+
+export function BreadActionsCell<TData extends Record<string, unknown>>({
+  record,
+  onEdit,
+  onDelete,
+  can,
+  extraItems,
+}: BreadActionsCellProps<TData>) {
+  if (!can.edit && !can.delete && !extraItems) return null;
+
+  return (
+    <div className="flex justify-end">
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="icon">
+            <MoreVertical className="h-4 w-4" />
+            <span className="sr-only">Open menu</span>
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          {extraItems}
+          {can.edit && (
+            <DropdownMenuItem onClick={() => onEdit(record)}>
+              <Pencil className="mr-1 size-4" />
+              Edit
+            </DropdownMenuItem>
+          )}
+          {can.edit && can.delete && <Separator className="my-1" />}
+          {can.delete && (
+            <DropdownMenuItem
+              onClick={() => onDelete(record.id as number)}
+              className="text-destructive"
+            >
+              <Trash2 className="mr-1 size-4" />
+              Delete
+            </DropdownMenuItem>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  );
+}
+
 // ─── Drawer Component ───────────────────────────────────────────────────────
 
 const BreadDrawer = React.memo<BreadDrawerProps>(
   ({ isOpen, onClose, record, FormFields, config, cannot }) => {
     const isMobile = useIsMobile();
+    // Draft ref persists create-form data across open/close cycles
+    const draftRef = React.useRef<Record<string, unknown> | null>(null);
 
-    const form = useForm(
-      (record
-        ? config.recordCallback(record)
-        : { ...config.defaultForm }) as any,
+    const [formData, setFormData] = React.useState<Record<string, unknown>>(
+      () =>
+        record ? config.recordCallback(record) : { ...config.defaultForm },
     );
+    const [formErrors, setFormErrors] = React.useState<Record<string, string>>(
+      {},
+    );
+    const [processing, setProcessing] = React.useState(false);
 
     // Reset form data when record/open state changes
     React.useEffect(() => {
       if (isOpen) {
-        form.clearErrors();
+        setFormErrors({});
         if (record) {
-          form.setDefaults(config.recordCallback(record));
-          form.reset();
+          // Edit mode: always load from record
+          setFormData(config.recordCallback(record));
         } else {
-          form.setDefaults({ ...config.defaultForm });
-          form.reset();
+          // Create mode: restore draft if available, otherwise default
+          setFormData(draftRef.current ?? { ...config.defaultForm });
         }
       }
     }, [record, isOpen]);
 
-    const handleChange = React.useCallback(
-      (field: string, value: unknown) => {
-        (form as any).setData(field, value);
-      },
-      [form],
-    );
+    // Keep draft in sync for create mode
+    React.useEffect(() => {
+      if (isOpen && !record) {
+        draftRef.current = formData;
+      }
+    }, [formData, isOpen, record]);
+
+    const clearDraftAndClose = React.useCallback(() => {
+      draftRef.current = null;
+      onClose();
+    }, [onClose]);
+
+    const handleChange = React.useCallback((field: string, value: unknown) => {
+      setFormData((prev) => ({ ...prev, [field]: value }));
+      // Clear error for this field
+      setFormErrors((prev) => {
+        if (prev[field]) {
+          const next = { ...prev };
+          delete next[field];
+          return next;
+        }
+        return prev;
+      });
+    }, []);
 
     const handleSubmit = React.useCallback(
       (e: React.SyntheticEvent) => {
         e.preventDefault();
-        const submitData = config.submitCallback(form.data);
+        const submitData = config.submitCallback(formData);
+        setProcessing(true);
+        setFormErrors({});
 
         const options = {
           preserveScroll: true,
-          onSuccess: () => onClose(),
+          onSuccess: () => clearDraftAndClose(),
+          onError: (errors: Record<string, string>) => setFormErrors(errors),
+          onFinish: () => setProcessing(false),
         };
 
         if (record?.id) {
@@ -224,7 +330,7 @@ const BreadDrawer = React.memo<BreadDrawerProps>(
           router.post(config.url, submitData as any, options);
         }
       },
-      [form.data, record?.id, onClose, config],
+      [formData, record?.id, onClose, config],
     );
 
     // Permission check
@@ -241,24 +347,24 @@ const BreadDrawer = React.memo<BreadDrawerProps>(
       <form onSubmit={handleSubmit} className="flex flex-col h-full">
         <div className="overflow-y-auto px-4 flex-1">
           <FormFields
-            formData={form.data}
+            formData={formData}
             isEdit={!!record}
             handleChange={handleChange}
-            formErrors={form.errors as Record<string, string>}
+            formErrors={formErrors}
           />
         </div>
 
         <div className="px-4 py-4 border-t mt-auto shrink-0">
           <div className="flex gap-2">
-            <Button type="submit" disabled={form.processing} className="flex-1">
-              {form.processing ? "Saving..." : record ? "Update" : "Create"}
+            <Button type="submit" disabled={processing} className="flex-1">
+              {processing ? "Saving..." : record ? "Update" : "Create"}
             </Button>
             <Button
               variant="outline"
               type="button"
-              onClick={onClose}
+              onClick={clearDraftAndClose}
               className="flex-1"
-              disabled={form.processing}
+              disabled={processing}
             >
               Cancel
             </Button>
@@ -337,9 +443,20 @@ export default function Bread<
   );
   const [rowSelection, setRowSelection] = React.useState({});
   const [searchQuery, setSearchQuery] = React.useState(() => {
-    // Initialize from current URL params
     const params = new URLSearchParams(window.location.search);
     return params.get("search") || "";
+  });
+  // Filter state: key → value (empty string means "all")
+  const [activeFilters, setActiveFilters] = React.useState<
+    Record<string, string>
+  >(() => {
+    const params = new URLSearchParams(window.location.search);
+    const initial: Record<string, string> = {};
+    (config.filters || []).forEach((f) => {
+      const v = params.get(f.key);
+      if (v) initial[f.key] = v;
+    });
+    return initial;
   });
   const [drawerOpen, setDrawerOpen] = React.useState(false);
   const [selectedRecord, setSelectedRecord] = React.useState<TData | null>(
@@ -356,28 +473,55 @@ export default function Bread<
   // Debounce search query
   const [debouncedSearchQuery] = useDebounce(searchQuery, 500);
 
+  // Build common request params (search + filters + pagination)
+  const buildParams = React.useCallback(
+    (overrides: Record<string, string | number> = {}) => {
+      const params: Record<string, string | number> = {
+        page: overrides.page ?? currentPage,
+        per_page: overrides.per_page ?? pageSize,
+      };
+      const search =
+        overrides.search !== undefined
+          ? overrides.search
+          : debouncedSearchQuery;
+      if (search) params.search = search;
+
+      const filters =
+        (overrides._filters as unknown as Record<string, string>) ??
+        activeFilters;
+      Object.entries(filters).forEach(([k, v]) => {
+        if (v) params[k] = v;
+      });
+
+      return params;
+    },
+    [currentPage, pageSize, debouncedSearchQuery, activeFilters],
+  );
+
+  const navigate = React.useCallback(
+    (params: Record<string, string | number>) => {
+      router.get(config.url, params, {
+        preserveState: true,
+        preserveScroll: true,
+        replace: true,
+      });
+    },
+    [config.url],
+  );
+
   // Reload data when search query changes
   const isFirstRender = React.useRef(true);
   React.useEffect(() => {
-    // Skip the initial render to avoid a redundant request
     if (isFirstRender.current) {
       isFirstRender.current = false;
       return;
     }
-
-    const params: Record<string, string | number> = {
-      page: 1,
-      per_page: pageSize,
-    };
-    if (debouncedSearchQuery) {
-      params.search = debouncedSearchQuery;
-    }
-
-    router.get(config.url, params, {
-      preserveState: true,
-      preserveScroll: true,
-      replace: true,
-    });
+    navigate(
+      buildParams({
+        page: 1,
+        search: debouncedSearchQuery as unknown as number,
+      }),
+    );
   }, [debouncedSearchQuery]);
 
   // Permission check
@@ -436,41 +580,38 @@ export default function Bread<
 
   const handlePageChange = React.useCallback(
     (newPage: number) => {
-      const params: Record<string, string | number> = {
-        page: newPage,
-        per_page: pageSize,
-      };
-      if (debouncedSearchQuery) {
-        params.search = debouncedSearchQuery;
-      }
-
-      router.get(config.url, params, {
-        preserveState: true,
-        preserveScroll: true,
-        replace: true,
-      });
+      navigate(buildParams({ page: newPage }));
     },
-    [pageSize, debouncedSearchQuery, config.url],
+    [buildParams, navigate],
   );
 
   const handlePageSizeChange = React.useCallback(
     (value: string) => {
-      const params: Record<string, string | number> = {
-        page: 1,
-        per_page: Number(value),
-      };
-      if (debouncedSearchQuery) {
-        params.search = debouncedSearchQuery;
-      }
-
-      router.get(config.url, params, {
-        preserveState: true,
-        preserveScroll: true,
-        replace: true,
-      });
+      navigate(buildParams({ page: 1, per_page: Number(value) }));
     },
-    [debouncedSearchQuery, config.url],
+    [buildParams, navigate],
   );
+
+  const handleFilterChange = React.useCallback(
+    (key: string, value: string) => {
+      const newFilters = { ...activeFilters };
+      if (value) {
+        newFilters[key] = value;
+      } else {
+        delete newFilters[key];
+      }
+      setActiveFilters(newFilters);
+      navigate(buildParams({ page: 1, _filters: newFilters as any }));
+    },
+    [activeFilters, buildParams, navigate],
+  );
+
+  const handleClearFilters = React.useCallback(() => {
+    setActiveFilters({});
+    navigate(buildParams({ page: 1, _filters: {} as any }));
+  }, [buildParams, navigate]);
+
+  const activeFilterCount = Object.keys(activeFilters).length;
 
   const handleCloseDrawer = React.useCallback(() => {
     setDrawerOpen(false);
@@ -598,20 +739,83 @@ export default function Bread<
         )}
 
         <div className="flex items-center gap-4 justify-between">
-          {!config.disabled?.includes("search") && (
-            <div className="relative w-full max-w-sm">
-              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder={`Search ${config.name.toLowerCase()}...`}
-                value={searchQuery}
-                onChange={handleSearchChange}
-                className="pl-8"
-              />
-            </div>
-          )}
-          {!config.disabled?.includes("search") && selectedCount === 0 && (
-            <div className="flex-1" />
-          )}
+          <div className="flex items-center gap-2 flex-1 min-w-0">
+            {!config.disabled?.includes("search") && (
+              <div className="relative w-full max-w-sm">
+                <Search className="absolute left-2.5 top-2.5 size-3.5 text-muted-foreground" />
+                <Input
+                  placeholder={`Search ${config.name.toLowerCase()}...`}
+                  value={searchQuery}
+                  onChange={handleSearchChange}
+                  className="pl-8 h-8.5 text-[0.8rem]"
+                />
+              </div>
+            )}
+            {config.filters && config.filters.length > 0 && (
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="shrink-0">
+                    <ListFilter className="h-4 w-4" />
+                    <span className="hidden lg:inline">Filters</span>
+                    {activeFilterCount > 0 && (
+                      <Badge
+                        variant="secondary"
+                        className="ml-1 px-1.5 py-0 text-xs rounded-full"
+                      >
+                        {activeFilterCount}
+                      </Badge>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent align="start" className="w-60 p-3 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-sm font-medium">Filters</h4>
+                    {activeFilterCount > 0 && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-auto px-1.5 py-0.5 text-xs text-muted-foreground"
+                        onClick={handleClearFilters}
+                      >
+                        Clear all
+                      </Button>
+                    )}
+                  </div>
+                  {config.filters.map((filter) => (
+                    <div key={filter.key} className="space-y-1.5">
+                      <Label className="text-xs text-muted-foreground">
+                        {filter.label}
+                      </Label>
+                      <Select
+                        value={activeFilters[filter.key] || ""}
+                        onValueChange={(v) =>
+                          handleFilterChange(
+                            filter.key,
+                            v === "__all__" ? "" : v,
+                          )
+                        }
+                      >
+                        <SelectTrigger className="h-8 text-xs">
+                          <SelectValue placeholder={`All ${filter.label}`} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__all__">
+                            All {filter.label}
+                          </SelectItem>
+                          {filter.options.map((opt) => (
+                            <SelectItem key={opt.value} value={opt.value}>
+                              {opt.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  ))}
+                </PopoverContent>
+              </Popover>
+            )}
+          </div>
+          {selectedCount === 0 && <div className="flex-1" />}
           <div className="flex items-center gap-2.5">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -661,6 +865,39 @@ export default function Bread<
             )}
           </div>
         </div>
+
+        {activeFilterCount > 0 && (
+          <div className="flex flex-wrap items-center gap-2">
+            {Object.entries(activeFilters).map(([key, value]) => {
+              const filter = config.filters?.find((f) => f.key === key);
+              const optionLabel =
+                filter?.options.find((o) => o.value === value)?.label ?? value;
+              return (
+                <Badge key={key} variant="secondary" className="gap-1 pr-1">
+                  {filter?.label}: {optionLabel}
+                  <button
+                    type="button"
+                    onClick={() => handleFilterChange(key, "")}
+                    className="ml-0.5 rounded-full p-0.5 hover:bg-muted"
+                  >
+                    <X className="h-3 w-3" />
+                    <span className="sr-only">
+                      Remove {filter?.label} filter
+                    </span>
+                  </button>
+                </Badge>
+              );
+            })}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 px-2 text-xs text-muted-foreground"
+              onClick={handleClearFilters}
+            >
+              Clear all
+            </Button>
+          </div>
+        )}
 
         {config.bulkActions &&
           config.bulkActions.length > 0 &&
