@@ -1,9 +1,16 @@
-import { createContext, useContext, useMemo, ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  ReactNode,
+} from "react";
 
 import { Users, CircleGauge, Settings, type LucideIcon } from "lucide-react";
 import { usePage } from "@inertiajs/react";
 import { ThemeProvider } from "next-themes";
 import { Toaster } from "@/components/ui/sonner";
+import { toast } from "sonner";
 
 import type { AppContextValue, MenuItem, Menu } from "@/types/context";
 
@@ -20,6 +27,22 @@ export const useApp = (): AppContextValue => {
 // Inner provider that uses usePage (must be inside Inertia's App component)
 const AppContextProvider = ({ children }: { children: ReactNode }) => {
   const { props } = usePage<{ app: AppConfig; auth: { user: User | null } }>();
+
+  useEffect(() => {
+    const flash = props.flash as {
+      info?: string;
+      success?: string;
+      error?: string;
+    };
+
+    if (flash?.success) {
+      toast.success(flash.success);
+    } else if (flash?.error) {
+      toast.error(flash.error);
+    } else if (flash?.info) {
+      toast.info(flash.info);
+    }
+  }, [props.flash]);
 
   const isAuthenticated = (): boolean =>
     !!props.auth.user && props.auth.user.id > 0;
@@ -171,10 +194,11 @@ const AppContextProvider = ({ children }: { children: ReactNode }) => {
 
   // Context value to be provided to children components
   const value: AppContextValue = {
-    app: props.app,
+    app: props.app || ({} as AppConfig),
+    privileges: props.privileges || ({} as any),
     menu,
     currentMenuItem,
-    user: props.auth.user || null,
+    user: props.auth.user || (null as User | null),
     isAuthenticated,
     can,
     cannot,

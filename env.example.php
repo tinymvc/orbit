@@ -14,7 +14,7 @@ return [
 
     // Application settings
     'app' => [
-        'name' => 'TinyMVC', // Application name
+        'name' => 'Inertia Php', // Application name
         'timezone' => 'UTC', // Application timezone
     ],
 

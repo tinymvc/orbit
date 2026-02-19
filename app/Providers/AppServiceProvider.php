@@ -4,6 +4,8 @@ namespace App\Providers;
 
 use App\Security\Privileges;
 use Inertia\Facades\Inertia;
+use Inertia\Facades\Props;
+use Spark\Facades\Auth;
 use Spark\Foundation\Providers\ServiceProvider;
 use Spark\Http\Validator;
 
@@ -23,12 +25,12 @@ class AppServiceProvider extends ServiceProvider
     {
         // Sharing the application name with all Inertia views
         Inertia::share([
-            'app' => [
-                'name' => config('app.name', 'TinyMvc'),
+            'app' => Props::once(fn() => [
+                'name' => config('app.name', 'Inertia Php'),
                 'timezone' => config('app.timezone', 'UTC'),
                 'locale' => config('lang', 'en'),
-                'privileges' => Privileges::list()->toArray(),
-            ],
+            ]),
+            'privileges' => Props::once(Privileges::list()->toArray(...)),
         ]);
 
         Privileges::register(); // Registering the application's privileges
@@ -43,6 +45,14 @@ class AppServiceProvider extends ServiceProvider
                 'email' => 'That %s is already registered. Please use a different email address.',
                 'default' => 'The %s must be unique in our database. Please choose a different value.',
             ],
+        ]);
+
+        // configure auth to use caching
+        Auth::configure([
+            'cache_enabled' => true,
+            'cache_expire' => '5 minutes',
+            'login_route' => 'admin.login',
+            'redirect_route' => 'admin.dashboard',
         ]);
     }
 }

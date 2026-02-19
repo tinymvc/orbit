@@ -15,13 +15,22 @@ use App\Http\Controllers\{
 use Spark\Facades\Route;
 
 Route::match(['get', 'post'], '/admin/login', [AuthController::class, 'login'])
-    ->middleware('guest');
+    ->middleware('guest')
+    ->name('login');
 
 Route::group(function () {
-    Route::inertia('/', 'admin/dashboard');
-    Route::post('/logout', [AuthController::class, 'logout']);
+    Route::post('/logout', [AuthController::class, 'logout'])
+        ->name('logout');
+
+    Route::inertia('/', 'admin/dashboard')
+        ->name('dashboard');
+
+    Route::match(['get', 'post'], '/profile', [AuthController::class, 'profile'])
+        ->name('profile');
+
     Route::resource('users', UsersController::class)
-        ->except(['create', 'edit', 'show']);
+        ->except(['create', 'edit', 'show'])
+        ->name('users');
 })
     ->middleware('auth')
     ->prefix('admin');

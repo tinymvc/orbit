@@ -2,7 +2,9 @@
 
 namespace App\Models;
 
+use Spark\Database\Events;
 use Spark\Database\Model;
+use Spark\Facades\Auth;
 
 class User extends Model
 {
@@ -42,5 +44,10 @@ class User extends Model
     public function getAvatarUrlAttribute(): string
     {
         return get_gravatar_url($this->attributes['email'] ?? '', 100);
+    }
+
+    public function events(): Events
+    {
+        return Events::make(changed: fn() => $this->id && Auth::clearCache($this->id));
     }
 }

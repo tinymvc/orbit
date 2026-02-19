@@ -64,9 +64,7 @@ interface ColumnsCallbackParams {
 
 const PrivilegesBox = React.memo<PrivilegesBoxProps>(
   ({ formData, formErrors, handleChange }) => {
-    const { app } = useApp();
-    const privileges: Record<string, Record<string, string>> = app.privileges ||
-    {};
+    const { privileges } = useApp();
 
     const handlePrivilegeToggle = (privilegeKey: string) => {
       const currentPrivileges = formData.privileges || [];
@@ -171,9 +169,7 @@ const PrivilegesBox = React.memo<PrivilegesBoxProps>(
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
 const usePrivilegeLabel = () => {
-  const { app } = useApp();
-  const privileges: Record<string, Record<string, string>> = app.privileges ||
-  {};
+  const { privileges } = useApp();
 
   return (key: string): string => {
     for (const group of Object.values(privileges)) {
