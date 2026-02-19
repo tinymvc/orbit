@@ -10,8 +10,10 @@ class GuestMiddleware implements MiddlewareInterface
 {
     public function handle(Request $request, \Closure $next): mixed
     {
-        if ($request->auth()->hasId()) {
-            return Inertia::redirect('/admin');
+        if ($request->auth()->isLogged()) {
+            return Inertia::redirect(
+                $request->auth()->getRedirectRoute()
+            );
         }
 
         return $next($request);

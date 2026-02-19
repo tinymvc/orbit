@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use Spark\Facades\Auth;
-use Spark\Facades\Hash;
 use Spark\Http\Request;
 
 class AuthController extends Controller
@@ -18,11 +17,12 @@ class AuthController extends Controller
                 'remember_me' => 'nullable|boolean',
             ]);
 
+            /** @var \App\Models\User */
             $user = User::where('username', $input['user'])
                 ->orWhere('email', $input['user'])
                 ->first();
 
-            if (!$user || Hash::verify($input['password'], $user->password) === false) {
+            if (!$user || $user->password($input->safe('password')) === false) {
                 return back()->withErrors([
                     'user' => 'Invalid credentials. Please check your username/email and password.',
                 ]);
@@ -32,7 +32,7 @@ class AuthController extends Controller
 
             $request->session()->regenerate();
 
-            return redirect('/admin')
+            return redirect(Auth::getRedirectRoute())
                 ->with('success', 'You have successfully logged in!');
         }
 
@@ -45,7 +45,7 @@ class AuthController extends Controller
 
         $request->session()->regenerate(deleteOldSession: true);
 
-        return redirect('/admin/login')
+        return redirect(Auth::getLoginRoute())
             ->with('success', 'You have successfully logged out!');
     }
 
@@ -65,20 +65,22 @@ class AuthController extends Controller
             ]);
 
             if ($input['action'] === 'general') {
-                $user->fill($request->only(['first_name', 'last_name', 'username', 'email']));
+                $user->fill(
+                    $input->only(['first_name', 'last_name', 'username', 'email'])
+                );
                 $user->save();
 
                 return back()
                     ->with('success', 'Profile updated successfully.');
             } elseif ($input['action'] === 'password') {
-                if (Hash::verify($input['current_password'], $user->password) === false) {
+                if ($user->password($input['current_password']) === false) {
                     return back()
                         ->withErrors([
                             'current_password' => 'The current password you entered is incorrect.'
                         ]);
                 }
 
-                $user->password = Hash::make($input['password']);
+                $user->password = $input['password'];
                 $user->save();
 
                 return back()

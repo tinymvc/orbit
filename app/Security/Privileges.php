@@ -41,9 +41,7 @@ class Privileges
     {
         Gate::define(
             'permission',
-            fn(array|string $privileges): bool => is_logged() && user('privileges')
-                ->intersect((array) $privileges)
-                ->isNotEmpty()
+            fn(array|string $privileges): bool => is_logged() && user()->can($privileges)
         );
     }
 }

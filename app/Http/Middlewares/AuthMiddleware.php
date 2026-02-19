@@ -10,8 +10,13 @@ class AuthMiddleware implements MiddlewareInterface
 {
     public function handle(Request $request, \Closure $next): mixed
     {
-        if (!$request->auth()->hasId()) {
-            return Inertia::redirect('/admin/login');
+        if ($request->auth()->isGuest()) {
+            $request->session()
+                ->flash('__auth_redirect', $request->getUrl());
+
+            return Inertia::redirect(
+                $request->auth()->getLoginRoute()
+            );
         }
 
         return $next($request);

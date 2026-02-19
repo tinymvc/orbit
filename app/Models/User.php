@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Security\HasRoles;
 use Spark\Database\Events;
 use Spark\Database\Model;
 use Spark\Facades\Auth;
@@ -26,6 +27,7 @@ class User extends Model
     protected array $appends = [
         'display_name',
         'avatar_url',
+        'privileges',
     ];
 
     public function getCreatedAtAttribute($value): string

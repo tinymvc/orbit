@@ -11,7 +11,8 @@ class UsersController extends Controller
     {
         authorize('permission', 'users.browse');
 
-        $users = User::latest()
+        $users = User::latest('id')
+            ->with('roles:id,name,privileges')
             ->when(
                 $request->has('search'),
                 fn($query) => $query->whereRaw(
@@ -34,18 +35,23 @@ class UsersController extends Controller
     {
         authorize('permission', 'users.create');
 
+        $input = $request->validate([
+            'first_name' => 'max:50',
+            'last_name' => 'max:50',
+            'roles' => 'required|array|min:1|max:50',
+            'email' => 'required|email|max:60|unique:users,email',
+            'username' => 'required|max:60|unique:users,username',
+            'password' => 'required|min:6|confirmed',
+        ]);
+
         $user = User::create(
-            $request->validate([
-                'first_name' => 'max:50',
-                'last_name' => 'max:50',
-                'privileges' => 'required|array|min:1|max:500',
-                'email' => 'required|email|max:60|unique:users,email',
-                'username' => 'required|max:60|unique:users,username',
-                'password' => 'required|min:6|confirmed',
-            ])
+            $input->except('roles')->filter()
         );
 
         if ($user->wasCreated()) {
+            $user->roles()
+                ->sync($input->array('roles'));
+
             return inertia()
                 ->back()
                 ->with('success', 'User created successfully.');
@@ -63,16 +69,23 @@ class UsersController extends Controller
         $input = $request->validate([
             'first_name' => 'max:50',
             'last_name' => 'max:50',
-            'privileges' => 'required|array|min:1|max:500',
+            'roles' => 'required|array|min:1|max:50',
             'email' => "required|email|max:60|unique:users,email,$id",
             'username' => "required|max:60|unique:users,username,$id",
             'password' => 'nullable|min:8|confirmed',
         ]);
 
+        /** @var \App\Models\User */
         $user = User::findOrFail($id);
-        $user->fill($input->filter());
+        $user->fill($input->except('roles')->filter());
 
-        if ($user->save()) {
+        $result = $user->roles()->sync($input->array('roles'));
+
+        if (
+            $user->save() ||
+            $result['attached'] > 0 ||
+            $result['detached'] > 0
+        ) {
             return inertia()
                 ->back()
                 ->with('success', 'User updated successfully.');

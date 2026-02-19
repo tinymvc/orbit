@@ -27,6 +27,7 @@ return new class {
 
     public function down(): void
     {
+        Role::delete('1=1');
         User::delete('1=1');
     }
 };
