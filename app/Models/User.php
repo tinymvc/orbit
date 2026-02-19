@@ -8,6 +8,8 @@ use Spark\Facades\Auth;
 
 class User extends Model
 {
+    use HasRoles;
+
     protected array $guarded = [
         'remember_token',
     ];
@@ -19,7 +21,6 @@ class User extends Model
 
     protected array $casts = [
         'password' => 'hashed',
-        'privileges' => 'collection',
     ];
 
     protected array $appends = [
