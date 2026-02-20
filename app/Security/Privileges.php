@@ -2,7 +2,6 @@
 
 namespace App\Security;
 
-use Spark\Facades\Gate;
 use Spark\Support\Collection;
 
 class Privileges
@@ -34,14 +33,6 @@ class Privileges
             fn($items, $key1) => collect($items)
                 ->mapWithKeys(fn($item, $key2) => ["$key1.$key2" => $item])
                 ->all()
-        );
-    }
-
-    public static function register(): void
-    {
-        Gate::define(
-            'permission',
-            fn(array|string $privileges): bool => is_logged() && user()->can($privileges)
         );
     }
 }

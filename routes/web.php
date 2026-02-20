@@ -10,6 +10,7 @@
 
 use App\Http\Controllers\{
     AuthController,
+    RolesController,
     UsersController
 };
 use Spark\Facades\Route;
@@ -31,6 +32,10 @@ Route::group(function () {
     Route::resource('users', UsersController::class)
         ->except(['create', 'edit', 'show'])
         ->name('users');
+
+    Route::resource('roles', RolesController::class)
+        ->except(['create', 'edit', 'show'])
+        ->name('roles');
 })
     ->middleware('auth')
     ->prefix('admin');

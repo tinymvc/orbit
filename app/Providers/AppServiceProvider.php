@@ -6,6 +6,7 @@ use App\Security\Privileges;
 use Inertia\Facades\Inertia;
 use Inertia\Facades\Props;
 use Spark\Facades\Auth;
+use Spark\Facades\Gate;
 use Spark\Foundation\Providers\ServiceProvider;
 use Spark\Http\Validator;
 
@@ -33,7 +34,11 @@ class AppServiceProvider extends ServiceProvider
             'privileges' => Props::once(Privileges::list()->toArray(...)),
         ]);
 
-        Privileges::register(); // Registering the application's privileges
+        // defining a gate for checking user permissions based on privileges
+        Gate::define(
+            'permission',
+            fn(array|string $privileges): bool => is_logged() && user()->can($privileges)
+        );
 
         // customize human friendly validation messages
         Validator::setErrorMessages([
