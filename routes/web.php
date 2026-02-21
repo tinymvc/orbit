@@ -17,7 +17,7 @@ use Spark\Facades\Route;
 
 Route::match(['get', 'post'], '/admin/login', [AuthController::class, 'login'])
     ->middleware('guest')
-    ->name('login');
+    ->name('admin.login');
 
 Route::group(function () {
     Route::post('/logout', [AuthController::class, 'logout'])

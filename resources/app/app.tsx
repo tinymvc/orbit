@@ -1,6 +1,6 @@
 import "./app.css";
 
-import { createInertiaApp } from "@inertiajs/react";
+import { createInertiaApp, type ResolvedComponent } from "@inertiajs/react";
 import { createRoot } from "react-dom/client";
 
 import { AppProvider } from "@/contexts/app";
@@ -8,7 +8,9 @@ import Dashboard from "@/layouts/dashboard";
 
 createInertiaApp({
   resolve: (name) => {
-    const pages = import.meta.glob("./pages/**/*.tsx", { eager: true });
+    const pages = import.meta.glob<ResolvedComponent>("./pages/**/*.tsx", {
+      eager: true,
+    });
     const page = pages[`./pages/${name}.tsx`] as any;
 
     if (name.startsWith("admin/")) {
