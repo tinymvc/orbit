@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Role;
 use App\Models\User;
 use Spark\Http\Request;
 
@@ -28,6 +29,7 @@ class UsersController extends Controller
 
         return inertia('admin/users', [
             'users' => $users,
+            'roles' => Role::select(['id', 'name'])->all(),
         ]);
     }
 

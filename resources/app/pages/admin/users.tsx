@@ -10,9 +10,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { headline } from "@/lib/utils";
-import { useApp } from "@/contexts/app";
 import type { Row } from "@tanstack/react-table";
+import { Link, usePage } from "@inertiajs/react";
+import { ShieldUser } from "lucide-react";
 
 // ─── Type definitions ───────────────────────────────────────────────────────
 
@@ -23,14 +23,8 @@ interface UserFormData {
   email: string;
   password: string;
   password_confirmation?: string;
-  privileges: string[];
+  roles: number[];
   [key: string]: unknown;
-}
-
-interface PrivilegesBoxProps {
-  formData: UserFormData;
-  formErrors: Record<string, string>;
-  handleChange: (field: string, value: unknown) => void;
 }
 
 interface FormFieldsProps {
@@ -49,8 +43,8 @@ interface EmailCellProps {
   email: string;
 }
 
-interface PrivilegesCellProps {
-  privileges: string[];
+interface RolesCellProps {
+  roles: Role[];
 }
 
 interface ColumnsCallbackParams {
@@ -60,126 +54,63 @@ interface ColumnsCallbackParams {
   can: { edit: boolean; delete: boolean; create: boolean };
 }
 
-// ─── Privileges Box Component ──────────────────────────────────────────────
+interface UserRolesSelectorProps {
+  selectedRoles: number[];
+  onChange: (roles: number[]) => void;
+  error?: string;
+}
 
-const PrivilegesBox = React.memo<PrivilegesBoxProps>(
-  ({ formData, formErrors, handleChange }) => {
-    const { privileges } = useApp();
+// ─── User Roles Selector ─────────────────────────────────────────────────────
 
-    const handlePrivilegeToggle = (privilegeKey: string) => {
-      const currentPrivileges = formData.privileges || [];
-      const newPrivileges = currentPrivileges.includes(privilegeKey)
-        ? currentPrivileges.filter((p: string) => p !== privilegeKey)
-        : [...currentPrivileges, privilegeKey];
-      handleChange("privileges", newPrivileges);
-    };
+const UserRolesSelector = React.memo<UserRolesSelectorProps>(
+  ({ selectedRoles, onChange, error }) => {
+    const { props } = usePage<{ roles: Role[] }>();
+    const availableRoles: Role[] = props.roles || [];
 
-    const handleGroupToggle = (groupKey: string) => {
-      const groupPermissions = Object.keys(privileges[groupKey] || {});
-      const currentPrivileges = formData.privileges || [];
-      const allSelected = groupPermissions.every((p) =>
-        currentPrivileges.includes(p),
-      );
-
-      const newPrivileges = allSelected
-        ? currentPrivileges.filter((p: string) => !groupPermissions.includes(p))
-        : [...new Set([...currentPrivileges, ...groupPermissions])];
-      handleChange("privileges", newPrivileges);
+    const handleToggle = (roleId: number) => {
+      const next = selectedRoles.includes(roleId)
+        ? selectedRoles.filter((id) => id !== roleId)
+        : [...selectedRoles, roleId];
+      onChange(next);
     };
 
     return (
-      <div className="space-y-4">
-        <Label className="block mb-2">Privileges</Label>
-        {formErrors.privileges && (
-          <p className="text-xs text-destructive">{formErrors.privileges}</p>
-        )}
-        <div className="space-y-3">
-          {Object.entries(privileges).map(([groupKey, permissions]) => {
-            const groupPermissions = Object.keys(permissions);
-            const currentPrivileges = formData.privileges || [];
-            const allSelected = groupPermissions.every((p) =>
-              currentPrivileges.includes(p),
-            );
-            const someSelected =
-              groupPermissions.some((p) => currentPrivileges.includes(p)) &&
-              !allSelected;
-
-            return (
-              <div
-                key={groupKey}
-                className="rounded-lg border bg-card text-card-foreground shadow-xs"
-              >
-                <div className="p-3 pb-3">
-                  <div className="flex items-center gap-2">
-                    <Checkbox
-                      id={`group-${groupKey}`}
-                      checked={allSelected}
-                      onCheckedChange={() => handleGroupToggle(groupKey)}
-                      className={
-                        someSelected
-                          ? "data-[state=checked]:bg-muted-foreground"
-                          : ""
-                      }
-                    />
-                    <Label
-                      htmlFor={`group-${groupKey}`}
-                      className="text-sm font-semibold cursor-pointer"
-                    >
-                      {headline(groupKey)}
-                    </Label>
-                  </div>
-                </div>
-                <div className="px-4 pb-4 pt-0">
-                  <div className="space-y-3 pl-5">
-                    {Object.entries(permissions).map(
-                      ([permissionKey, permissionLabel]) => (
-                        <div
-                          key={permissionKey}
-                          className="flex items-center gap-2"
-                        >
-                          <Checkbox
-                            id={permissionKey}
-                            checked={(formData.privileges || []).includes(
-                              permissionKey,
-                            )}
-                            onCheckedChange={() =>
-                              handlePrivilegeToggle(permissionKey)
-                            }
-                          />
-                          <Label
-                            htmlFor={permissionKey}
-                            className="text-[0.81rem] font-normal cursor-pointer"
-                          >
-                            {permissionLabel}
-                          </Label>
-                        </div>
-                      ),
-                    )}
-                  </div>
-                </div>
+      <div className="space-y-2">
+        <Label className="block mb-2">
+          Roles <sup className="text-destructive">*</sup>
+        </Label>
+        {error && <p className="text-xs text-destructive">{error}</p>}
+        {availableRoles.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            No roles available. Please{" "}
+            <a href="/admin/roles" className="text-primary underline">
+              create a role
+            </a>{" "}
+            first.
+          </p>
+        ) : (
+          <div className="rounded-lg border bg-card p-3 space-y-3">
+            {availableRoles.map((role) => (
+              <div key={role.id} className="flex items-center gap-2">
+                <Checkbox
+                  id={`role-${role.id}`}
+                  checked={selectedRoles.includes(role.id)}
+                  onCheckedChange={() => handleToggle(role.id)}
+                />
+                <Label
+                  htmlFor={`role-${role.id}`}
+                  className="text-sm font-normal cursor-pointer"
+                >
+                  {role.name}
+                </Label>
               </div>
-            );
-          })}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     );
   },
 );
-
-// ─── Helpers ────────────────────────────────────────────────────────────────
-
-const usePrivilegeLabel = () => {
-  const { privileges } = useApp();
-
-  return (key: string): string => {
-    for (const group of Object.values(privileges)) {
-      if (group[key]) {
-        return group[key];
-      }
-    }
-    return key;
-  };
-};
 
 // ─── Memoized form fields component ─────────────────────────────────────────
 
@@ -300,10 +231,10 @@ const FormFields = React.memo<FormFieldsProps>(
             </p>
           )}
         </div>
-        <PrivilegesBox
-          formData={fd}
-          formErrors={formErrors}
-          handleChange={handleChange}
+        <UserRolesSelector
+          selectedRoles={fd.roles || []}
+          onChange={(roles) => handleChange("roles", roles)}
+          error={formErrors.roles}
         />
       </div>
     );
@@ -331,17 +262,20 @@ const EmailCell = React.memo<EmailCellProps>(({ email }) => (
   <Badge variant="secondary">{email}</Badge>
 ));
 
-const PrivilegesCell = React.memo<PrivilegesCellProps>(({ privileges }) => {
-  const getLabel = usePrivilegeLabel();
-  const count = privileges.length;
-  const permissions = privileges.slice(0, 3).map((per: string) => (
-    <Badge key={per} variant="outline" className="text-muted-foreground">
-      {getLabel(per)}
-    </Badge>
-  ));
+const RolesCell = React.memo<RolesCellProps>(({ roles }) => {
+  const count = roles.length;
+  const visible = roles.slice(0, 3);
   return (
     <div className="flex flex-wrap gap-1.5">
-      {permissions}{" "}
+      {visible.map((role) => (
+        <Badge
+          key={role.id}
+          variant="outline"
+          className="text-muted-foreground"
+        >
+          {role.name}
+        </Badge>
+      ))}
       {count > 3 && (
         <Badge variant="outline" className="text-muted-foreground">
           +{` ${count - 3}`}
@@ -373,12 +307,10 @@ const columnsCallback = ({
     ),
   },
   {
-    accessorKey: "privileges",
-    header: "Privileges",
+    accessorKey: "roles",
+    header: "Roles",
     cell: ({ row }: { row: Row<User> }) => (
-      <PrivilegesCell
-        privileges={(row.original.privileges as string[]) || []}
-      />
+      <RolesCell roles={(row.original.roles as Role[]) || []} />
     ),
   },
   {
@@ -410,7 +342,7 @@ const config: BreadConfig = {
   url: "/admin/users",
   title: "Users",
   name: "User",
-  description: "Manage application users, their details, and permissions.",
+  description: "Manage application users, their details, and role assignments.",
   filters: [
     {
       key: "status",
@@ -430,7 +362,7 @@ const config: BreadConfig = {
     email: "",
     password: "",
     password_confirmation: "",
-    privileges: [],
+    roles: [],
   },
   permissions: {
     browse: "users.browse",
@@ -445,7 +377,7 @@ const config: BreadConfig = {
     email: user.email || "",
     password: "",
     password_confirmation: "",
-    privileges: user.privileges || [],
+    roles: ((user.roles as Role[]) || []).map((r) => r.id),
   }),
   submitCallback: (formData) => {
     const data = { ...formData };
@@ -455,6 +387,19 @@ const config: BreadConfig = {
     }
     return data;
   },
+  extraActions: () => (
+    <>
+      <Link
+        href="/admin/roles"
+        className="text-sm text-primary hover:underline"
+      >
+        <Button variant="outline" size="sm">
+          <ShieldUser />
+          Manage Roles
+        </Button>
+      </Link>
+    </>
+  ),
 };
 
 // ─── Page Component ─────────────────────────────────────────────────────────
@@ -464,7 +409,7 @@ export default function UsersPage({ users }: { users: PaginatedData<User> }) {
     <Bread<User>
       config={config}
       paginated={users}
-      columnsCallback={columnsCallback as any}
+      columnsCallback={columnsCallback}
       FormFields={FormFields}
     />
   );

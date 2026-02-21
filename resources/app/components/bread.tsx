@@ -170,6 +170,7 @@ export interface BreadConfig {
     editPath: (id: number) => string;
   };
   customActions?: React.ComponentType;
+  extraActions?: React.ComponentType;
   bulkActions?: {
     label: string;
     action: string;
@@ -817,40 +818,43 @@ export default function Bread<
           </div>
           {selectedCount === 0 && <div className="flex-1" />}
           <div className="flex items-center gap-2.5">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm">
-                  <Columns3 className="h-4 w-4" />
-                  <span className="hidden lg:inline">Columns</span>
-                  <ChevronDown className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                {table
-                  .getAllColumns()
-                  .filter(
-                    (column) =>
-                      typeof column.accessorFn !== "undefined" &&
-                      column.getCanHide(),
-                  )
-                  .map((column) => {
-                    return (
-                      <DropdownMenuCheckboxItem
-                        key={column.id}
-                        className="capitalize"
-                        checked={column.getIsVisible()}
-                        onCheckedChange={(value) =>
-                          column.toggleVisibility(!!value)
-                        }
-                      >
-                        {typeof column.columnDef.header === "string"
-                          ? column.columnDef.header
-                          : headline(column.id)}
-                      </DropdownMenuCheckboxItem>
-                    );
-                  })}
-              </DropdownMenuContent>
-            </DropdownMenu>
+            {!config.disabled?.includes("columns") && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    <Columns3 className="h-4 w-4" />
+                    <span className="hidden lg:inline">Columns</span>
+                    <ChevronDown className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  {table
+                    .getAllColumns()
+                    .filter(
+                      (column) =>
+                        typeof column.accessorFn !== "undefined" &&
+                        column.getCanHide(),
+                    )
+                    .map((column) => {
+                      return (
+                        <DropdownMenuCheckboxItem
+                          key={column.id}
+                          className="capitalize"
+                          checked={column.getIsVisible()}
+                          onCheckedChange={(value) =>
+                            column.toggleVisibility(!!value)
+                          }
+                        >
+                          {typeof column.columnDef.header === "string"
+                            ? column.columnDef.header
+                            : headline(column.id)}
+                        </DropdownMenuCheckboxItem>
+                      );
+                    })}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+            {config.extraActions && <config.extraActions />}
             {config.customActions ? (
               <config.customActions />
             ) : (

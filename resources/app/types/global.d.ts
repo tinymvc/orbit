@@ -18,6 +18,16 @@ declare global {
     avatar_url?: string;
     created_at?: string;
     privileges?: string[];
+    roles?: Role[];
+    [key: string]: unknown;
+  }
+
+  interface Role {
+    id: number;
+    name: string;
+    privileges: string[];
+    created_at: string;
+    updated_at: string;
     [key: string]: unknown;
   }
 }

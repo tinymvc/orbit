@@ -6,13 +6,15 @@ import {
   ReactNode,
 } from "react";
 
-import { Users, CircleGauge, Settings, type LucideIcon } from "lucide-react";
+import { CircleGauge, type LucideIcon } from "lucide-react";
 import { usePage } from "@inertiajs/react";
 import { ThemeProvider } from "next-themes";
 import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
 
 import type { AppContextValue, MenuItem, Menu } from "@/types/context";
+
+import { DashboardMenuItems } from "@/lib/consts";
 
 export const AppContext = createContext<AppContextValue | null>(null);
 
@@ -77,34 +79,11 @@ const AppContextProvider = ({ children }: { children: ReactNode }) => {
       });
 
   const menu: Menu = {
-    navMain: filterMenuItemsByPermissions([
-      {
-        title: "Dashboard",
-        url: "/admin",
-        icon: CircleGauge,
-        permission: ["dashboard.overview"],
-      },
-      {
-        title: "Users",
-        url: "/admin/users",
-        icon: Users,
-        permission: ["users.browse"],
-      },
-    ]),
-    navSecondary: filterMenuItemsByPermissions([
-      {
-        title: "Settings",
-        url: "/admin/settings",
-        icon: Settings,
-        permission: ["settings.smtp"],
-      },
-    ]),
-    hidden: [
-      {
-        title: "Profile",
-        url: "/admin/profile",
-      },
-    ],
+    navMain: filterMenuItemsByPermissions(DashboardMenuItems.navMain || []),
+    navSecondary: filterMenuItemsByPermissions(
+      DashboardMenuItems.navSecondary || [],
+    ),
+    hidden: DashboardMenuItems.hidden || [],
   };
 
   const isActive = (url?: string): boolean =>
@@ -195,7 +174,6 @@ const AppContextProvider = ({ children }: { children: ReactNode }) => {
   // Context value to be provided to children components
   const value: AppContextValue = {
     app: props.app || ({} as AppConfig),
-    privileges: props.privileges || ({} as any),
     menu,
     currentMenuItem,
     user: props.auth.user || (null as User | null),

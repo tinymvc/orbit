@@ -2,7 +2,6 @@
 
 namespace App\Providers;
 
-use App\Security\Privileges;
 use Inertia\Facades\Inertia;
 use Inertia\Facades\Props;
 use Spark\Facades\Auth;
@@ -31,7 +30,6 @@ class AppServiceProvider extends ServiceProvider
                 'timezone' => config('app.timezone', 'UTC'),
                 'locale' => config('lang', 'en'),
             ]),
-            'privileges' => Props::once(Privileges::list()->toArray(...)),
         ]);
 
         // defining a gate for checking user permissions based on privileges

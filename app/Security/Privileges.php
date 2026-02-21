@@ -10,6 +10,12 @@ class Privileges
         'dashboard' => [
             'overview' => 'View Dashboard Overview',
         ],
+        'roles' => [
+            'browse' => 'View Roles Table',
+            'create' => 'Create Roles',
+            'edit' => 'Edit Roles',
+            'delete' => 'Delete Roles',
+        ],
         'users' => [
             'browse' => 'View Users Table',
             'create' => 'Create Users',

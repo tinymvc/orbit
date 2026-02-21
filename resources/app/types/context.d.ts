@@ -25,7 +25,6 @@ export interface Menu {
 
 export interface AppContextValue {
   app: AppConfig;
-  privileges: Record<string, Record<string, string>>;
   menu: Menu;
   currentMenuItem: MenuItem;
   user: User | null;

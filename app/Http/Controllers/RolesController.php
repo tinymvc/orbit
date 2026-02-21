@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Role;
+use App\Security\Privileges;
+use Inertia\Facades\Props;
 use Spark\Http\Request;
 
 class RolesController extends Controller
@@ -20,6 +22,7 @@ class RolesController extends Controller
 
         return inertia('admin/roles', [
             'roles' => $roles,
+            'privileges' => Props::once(Privileges::list()->toArray(...))
         ]);
     }
 
@@ -56,6 +59,8 @@ class RolesController extends Controller
                 'privileges' => 'required|array|min:1|max:200',
             ])
         );
+
+        $role->save();
 
         if ($role->wasUpdated()) {
             return inertia()
