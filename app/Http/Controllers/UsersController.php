@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Role;
 use App\Models\User;
 use Spark\Http\Request;
+use function in_array;
 
 class UsersController extends Controller
 {
@@ -25,11 +26,17 @@ class UsersController extends Controller
                 $request->has('status'),
                 fn($query) => $query->where('status', $request->input('status'))
             )
+            ->when(
+                $request->has('role'),
+                fn($query) => $query->whereHas('roles', function ($q) use ($request) {
+                    $q->where('roles.id', $request->input('role'));
+                })
+            )
             ->paginate($request->input('per_page', 10));
 
         return inertia('admin/users', [
             'users' => $users,
-            'roles' => Role::select(['id', 'name'])->all(),
+            'roles' => Role::all(['id', 'name']),
         ]);
     }
 
@@ -96,6 +103,37 @@ class UsersController extends Controller
         return inertia()
             ->back()
             ->with('error', 'Failed to update user.');
+    }
+
+    public function bulkAction(Request $request)
+    {
+        $input = $request->validate([
+            'action' => 'required|string|in:delete,active,inactive,banned',
+            'ids' => 'required|array|min:1',
+        ]);
+
+        if ($input->string('action') === 'delete') {
+            authorize('permission', 'users.delete');
+
+            User::destroy($input->array('ids'));
+
+            return inertia()
+                ->back()
+                ->with('success', 'Selected users deleted successfully.');
+        } elseif (in_array($input->string('action'), ['active', 'inactive', 'banned'])) {
+            authorize('permission', 'users.edit');
+
+            User::whereIn('id', $input->array('ids'))
+                ->update(['status' => $input['action']]);
+
+            return inertia()
+                ->back()
+                ->with('success', 'Selected users updated successfully.');
+        }
+
+        return inertia()
+            ->back()
+            ->with('error', 'Invalid action selected.');
     }
 
     public function destroy(int $id)

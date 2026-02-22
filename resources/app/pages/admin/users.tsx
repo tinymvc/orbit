@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import type { Row } from "@tanstack/react-table";
 import { Link, usePage } from "@inertiajs/react";
-import { ShieldUser } from "lucide-react";
+import { Ban, ShieldUser } from "lucide-react";
 
 // ─── Type definitions ───────────────────────────────────────────────────────
 
@@ -287,58 +287,69 @@ const RolesCell = React.memo<RolesCellProps>(({ roles }) => {
 
 // ─── Columns ────────────────────────────────────────────────────────────────
 
-const columnsCallback = ({
-  handleEdit,
-  handleDelete,
-  can,
-}: ColumnsCallbackParams) => [
-  {
-    accessorKey: "name",
-    header: "Name",
-    cell: ({ row }: { row: Row<User> }) => (
-      <NameCell row={row} onEdit={handleEdit} />
-    ),
-  },
-  {
-    accessorKey: "email",
-    header: "Email",
-    cell: ({ row }: { row: Row<User> }) => (
-      <EmailCell email={row.original.email} />
-    ),
-  },
-  {
-    accessorKey: "roles",
-    header: "Roles",
-    cell: ({ row }: { row: Row<User> }) => (
-      <RolesCell roles={(row.original.roles as Role[]) || []} />
-    ),
-  },
-  {
-    accessorKey: "created_at",
-    header: "Joined At",
-    cell: ({ row }: { row: Row<User> }) => (
-      <span className="text-sm text-muted-foreground">
-        {row.original.created_at}
-      </span>
-    ),
-  },
-  {
-    id: "actions",
-    cell: ({ row }: { row: Row<User> }) =>
-      (can.edit || can.delete) && (
-        <BreadActionsCell
-          record={row.original}
-          onEdit={handleEdit}
-          onDelete={handleDelete}
-          can={can}
-        />
+const columnsCallback =
+  (bulkAction: (action: string, selectedIds: number[]) => void) =>
+  ({ handleEdit, handleDelete, can }: ColumnsCallbackParams) => [
+    {
+      accessorKey: "name",
+      header: "Name",
+      cell: ({ row }: { row: Row<User> }) => (
+        <NameCell row={row} onEdit={handleEdit} />
       ),
-  },
-];
+    },
+    {
+      accessorKey: "email",
+      header: "Email",
+      cell: ({ row }: { row: Row<User> }) => (
+        <EmailCell email={row.original.email} />
+      ),
+    },
+    {
+      accessorKey: "roles",
+      header: "Roles",
+      cell: ({ row }: { row: Row<User> }) => (
+        <RolesCell roles={(row.original.roles as Role[]) || []} />
+      ),
+    },
+    {
+      accessorKey: "created_at",
+      header: "Joined At",
+      cell: ({ row }: { row: Row<User> }) => (
+        <span className="text-sm text-muted-foreground">
+          {row.original.created_at}
+        </span>
+      ),
+    },
+    {
+      id: "actions",
+      cell: ({ row }: { row: Row<User> }) => (
+        <div className="flex items-center justify-end gap-0.5">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => bulkAction("banned", [row.original.id])}
+          >
+            <Ban className="size-4 text-destructive" />
+          </Button>
+          {(can.edit || can.delete) && (
+            <BreadActionsCell
+              record={row.original}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+              can={can}
+            />
+          )}
+        </div>
+      ),
+    },
+  ];
 
 // ─── Page Config ────────────────────────────────────────────────────────────
 
-const config: BreadConfig = {
+const config = (
+  roles: Role[],
+  bulkAction: (action: string, selectedIds: number[]) => void,
+): BreadConfig => ({
   url: "/admin/users",
   title: "Users",
   name: "User",
@@ -353,6 +364,14 @@ const config: BreadConfig = {
         { value: "unverified", label: "Unverified" },
         { value: "inactive", label: "Inactive" },
       ],
+    },
+    {
+      key: "role",
+      label: "Role",
+      options: roles.map((role) => ({
+        value: role.id.toString(),
+        label: role.name,
+      })) as { value: string; label: string }[],
     },
   ],
   defaultForm: {
@@ -395,21 +414,51 @@ const config: BreadConfig = {
       >
         <Button variant="outline" size="sm">
           <ShieldUser />
-          Manage Roles
+          <span className="hidden md:inline-block">Manage Roles</span>
         </Button>
       </Link>
     </>
   ),
-};
+  bulkActions: [
+    {
+      label: "Active Selected",
+      action: "active",
+      variant: "default",
+      callback: async (selectedIds) => bulkAction("active", selectedIds),
+    },
+    {
+      label: "Ban Selected",
+      action: "banned",
+      variant: "default",
+      callback: async (selectedIds) => bulkAction("banned", selectedIds),
+    },
+    {
+      label: "Delete Selected",
+      action: "delete",
+      variant: "destructive",
+      callback: async (selectedIds) => bulkAction("delete", selectedIds),
+    },
+  ],
+});
 
 // ─── Page Component ─────────────────────────────────────────────────────────
 
-export default function UsersPage({ users }: { users: PaginatedData<User> }) {
+export default function UsersPage({
+  users,
+  roles,
+}: {
+  users: PaginatedData<User>;
+  roles: Role[];
+}) {
+  const bulkAction = (action: string, selectedIds: number[]) => {
+    console.log(`Performing ${action} on:`, selectedIds);
+  };
+
   return (
     <Bread<User>
-      config={config}
+      config={config(roles, bulkAction)}
       paginated={users}
-      columnsCallback={columnsCallback}
+      columnsCallback={columnsCallback(bulkAction)}
       FormFields={FormFields}
     />
   );

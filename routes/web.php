@@ -38,6 +38,7 @@ Route::group(function () {
     Route::match(['get', 'post'], '/profile', [AuthController::class, 'profile'])
         ->name('profile');
 
+    Route::post('users/bulk-action', [UsersController::class, 'bulkAction']);
     Route::resource('users', UsersController::class)
         ->except(['create', 'edit', 'show'])
         ->name('users');
