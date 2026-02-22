@@ -53,6 +53,7 @@ class AppServiceProvider extends ServiceProvider
         // configure auth to use caching
         Auth::configure([
             'cache_enabled' => true,
+            'use_remember_token' => true,
             'cache_expire' => '5 minutes',
             'login_route' => 'admin.login',
             'redirect_route' => 'admin.dashboard',

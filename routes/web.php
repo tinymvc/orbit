@@ -15,9 +15,18 @@ use App\Http\Controllers\{
 };
 use Spark\Facades\Route;
 
-Route::match(['get', 'post'], '/admin/login', [AuthController::class, 'login'])
+Route::group(function () {
+    Route::match(['get', 'post'], '/login', [AuthController::class, 'login'])
+        ->name('login');
+
+    Route::match(['get', 'post'], '/forgot-password', [AuthController::class, 'forgotPassword'])
+        ->name('password.forgot');
+
+    Route::match(['get', 'post'], '/reset-password', [AuthController::class, 'resetPassword'])
+        ->name('password.reset');
+})
     ->middleware('guest')
-    ->name('admin.login');
+    ->prefix('admin');
 
 Route::group(function () {
     Route::post('/logout', [AuthController::class, 'logout'])

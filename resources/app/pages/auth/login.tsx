@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useForm } from "@inertiajs/react";
+import { Link, useForm } from "@inertiajs/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -59,9 +59,17 @@ export default function Login() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password" className="block mb-2">
-                Password <sup className="text-destructive">*</sup>
-              </Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="password" className="block">
+                  Password <sup className="text-destructive">*</sup>
+                </Label>
+                <Link
+                  href="/admin/forgot-password"
+                  className="text-[0.8rem] text-primary hover:underline opacity-65 hover:opacity-100 transition-opacity"
+                >
+                  Forgot password?
+                </Link>
+              </div>
               <div className="relative">
                 <Input
                   id="password"

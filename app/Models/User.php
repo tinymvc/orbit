@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Security\HasRoles;
 use Spark\Database\Events;
 use Spark\Database\Model;
+use Spark\Database\Relation\HasMany;
 use Spark\Facades\Auth;
 
 class User extends Model
