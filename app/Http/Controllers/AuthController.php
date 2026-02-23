@@ -36,8 +36,7 @@ class AuthController extends Controller
                 $message = match ($user->status) {
                     'inactive' => 'Your account is currently inactive. Please contact support for assistance.',
                     'banned' => 'Your account has been banned. Please contact support for assistance.',
-                    'verified' => 'Your email address is verified, but your account is not active. Please contact support for assistance.',
-                    'unverified' => 'Your account is not verified. Please check your email for the verification link.',
+                    'suspended' => 'Your account has been suspended. Please contact support for assistance.',
                     default => 'Your account status does not allow you to log in. Please contact support for assistance.',
                 };
 
@@ -128,7 +127,7 @@ class AuthController extends Controller
             }
 
             try {
-                send_forgot_password_email($user);
+                $user->sendPasswordResetNotification();
             } catch (\Exception $e) {
                 Log::error("Password reset request failed for user ID {$user->id}: " . $e->getMessage());
                 return back()->withErrors([
@@ -191,5 +190,41 @@ class AuthController extends Controller
         return inertia('auth/reset-password', [
             'token' => $request->input('token'),
         ]);
+    }
+
+    public function emailVerification(Request $request)
+    {
+        try {
+            $token = Hash::decryptArray(
+                $request->query('token', '')
+            );
+
+            if (
+                !isset($token['user_id'], $token['email'], $token['timestamp']) ||
+                carbon($token['timestamp'])->addMinutes(60)->isPast()
+            ) {
+                throw new \Exception('Invalid or expired token');
+            }
+
+            /** @var User */
+            $user = User::find($token['user_id']);
+            if (!$user) {
+                throw new \Exception('User not found or email mismatch');
+            }
+
+            $user->fill([
+                'status' => 'active',
+                'email_verified_at' => now(),
+            ]);
+            $user->save();
+
+            Auth::login($user);
+
+            return redirect(Auth::getRedirectRoute())
+                ->with('success', 'Your email has been verified successfully. Welcome to the dashboard!');
+        } catch (\Exception $e) {
+            return redirect(Auth::getLoginRoute())
+                ->with('error', 'The email verification link is invalid. Please contact support for assistance.');
+        }
     }
 }

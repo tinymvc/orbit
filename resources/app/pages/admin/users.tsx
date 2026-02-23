@@ -276,7 +276,7 @@ const StatusCell = React.memo<{ status: string }>(({ status }) => {
   const statusMap: Record<string, { label: string; color: string }> = {
     active: { label: "Active", color: "default" },
     banned: { label: "Banned", color: "destructive" },
-    unverified: { label: "Unverified", color: "secondary" },
+    suspended: { label: "Suspended", color: "destructive" },
     inactive: { label: "Inactive", color: "outline" },
   };
 

@@ -47,6 +47,21 @@ trait HasRoles
     }
 
     /**
+     * Add one or more roles to the user.
+     *
+     * @param string|array $role The role name or an array of role names to add to the user.
+     */
+    public function addRole(string|array $role): void
+    {
+        $role = is_array($role) ? $role : func_get_args();
+
+        $roleIds = Role::whereIn('name', $role)
+            ->pluck('id');
+
+        $this->roles()->sync($roleIds, detaching: false);
+    }
+
+    /**
      * Check if the user has a specific permission through their roles.
      *
      * @param string|array $permission The permission name or an array of permission names to check against.
@@ -171,7 +186,6 @@ trait HasRoles
     {
         $token = Hash::encryptArray([
             'user_id' => $this->id,
-            'email' => $this->email,
             'timestamp' => now()->toDateTimeString(),
         ]);
 

@@ -109,7 +109,7 @@ class UsersController extends Controller
     public function bulkAction(Request $request)
     {
         $input = $request->validate([
-            'action' => 'required|string|in:delete,active,inactive,banned,send-reset-link,send-email-verification',
+            'action' => 'required|string|in:delete,active,inactive,suspended,banned,send-reset-link,send-email-verification',
             'ids' => 'required|array|min:1',
         ]);
 
@@ -121,7 +121,7 @@ class UsersController extends Controller
             return inertia()
                 ->back()
                 ->with('success', 'Selected users deleted successfully.');
-        } elseif (in_array($input->string('action'), ['active', 'inactive', 'banned'])) {
+        } elseif (in_array($input->string('action'), ['active', 'inactive', 'suspended', 'banned'])) {
             authorize('permission', 'users.edit');
 
             User::whereIn('id', $input->array('ids'))
@@ -130,6 +130,7 @@ class UsersController extends Controller
             $status = [
                 'active' => 'activated',
                 'inactive' => 'deactivated',
+                'suspended' => 'suspended',
                 'banned' => 'banned'
             ][$input->string('action')];
 

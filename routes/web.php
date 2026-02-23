@@ -24,6 +24,9 @@ Route::group(function () {
 
     Route::match(['get', 'post'], '/reset-password', [AuthController::class, 'resetPassword'])
         ->name('password.reset');
+
+    Route::get('/email-verification', [AuthController::class, 'emailVerification'])
+        ->name('email.verification');
 })
     ->middleware('guest')
     ->prefix('admin');
