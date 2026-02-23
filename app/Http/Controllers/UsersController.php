@@ -134,7 +134,7 @@ class UsersController extends Controller
 
             return inertia()
                 ->back()
-                ->with('success', 'Selected users ' . $status . ' successfully.');
+                ->with('success', "Selected users $status successfully.");
         }
 
         return inertia()
