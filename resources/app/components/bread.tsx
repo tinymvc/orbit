@@ -740,7 +740,7 @@ export default function Bread<
         )}
 
         <div className="flex items-center gap-4 justify-between">
-          <div className="flex items-center gap-2 flex-1 min-w-0">
+          <div className="flex items-center gap-2 sm:flex-1 min-w-0">
             {!config.disabled?.includes("search") && (
               <div className="relative w-full max-w-sm">
                 <Search className="absolute left-2.5 top-2.5 size-3.5 text-muted-foreground" />
@@ -863,7 +863,9 @@ export default function Bread<
                 can(config.permissions.create)) && (
                 <Button onClick={handleCreate}>
                   <Plus className="size-4" />
-                  {config.translations?.add_record || `Add ${config.name}`}
+                  <span className="hidden sm:block">
+                    {config.translations?.add_record || `Add ${config.name}`}
+                  </span>
                 </Button>
               )
             )}
