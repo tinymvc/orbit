@@ -32,4 +32,5 @@ export interface AppContextValue {
   can: (permission: string) => boolean | null | undefined;
   cannot: (permission: string) => boolean;
   canAny: (permissions: string[]) => boolean;
+  [key: string]: any;
 }

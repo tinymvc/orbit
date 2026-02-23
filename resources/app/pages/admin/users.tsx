@@ -11,8 +11,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import type { Row } from "@tanstack/react-table";
-import { Link, usePage } from "@inertiajs/react";
-import { Ban, ShieldUser } from "lucide-react";
+import { Link, usePage, router } from "@inertiajs/react";
+import { Ban, Check, ShieldUser } from "lucide-react";
+
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { headline } from "@/lib/utils";
+import { useApp } from "@/contexts/app";
 
 // ─── Type definitions ───────────────────────────────────────────────────────
 
@@ -262,6 +270,22 @@ const EmailCell = React.memo<EmailCellProps>(({ email }) => (
   <Badge variant="secondary">{email}</Badge>
 ));
 
+const StatusCell = React.memo<{ status: string }>(({ status }) => {
+  const statusMap: Record<string, { label: string; color: string }> = {
+    active: { label: "Active", color: "default" },
+    banned: { label: "Banned", color: "destructive" },
+    unverified: { label: "Unverified", color: "secondary" },
+    inactive: { label: "Inactive", color: "outline" },
+  };
+
+  const { label, color } = statusMap[status] || {
+    label: headline(status),
+    color: "default",
+  };
+
+  return <Badge variant={color as any}>{label}</Badge>;
+});
+
 const RolesCell = React.memo<RolesCellProps>(({ roles }) => {
   const count = roles.length;
   const visible = roles.slice(0, 3);
@@ -305,6 +329,13 @@ const columnsCallback =
       ),
     },
     {
+      accessorKey: "status",
+      header: "Status",
+      cell: ({ row }: { row: Row<User> }) => (
+        <StatusCell status={row.original.status} />
+      ),
+    },
+    {
       accessorKey: "roles",
       header: "Roles",
       cell: ({ row }: { row: Row<User> }) => (
@@ -324,13 +355,38 @@ const columnsCallback =
       id: "actions",
       cell: ({ row }: { row: Row<User> }) => (
         <div className="flex items-center justify-end gap-0.5">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => bulkAction("banned", [row.original.id])}
-          >
-            <Ban className="size-4 text-destructive" />
-          </Button>
+          {row.original.status !== "banned" && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => bulkAction("banned", [row.original.id])}
+                >
+                  <Ban className="size-4 text-destructive" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Ban This User</p>
+              </TooltipContent>
+            </Tooltip>
+          )}
+          {row.original.status !== "active" && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => bulkAction("active", [row.original.id])}
+                >
+                  <Check className="size-4 text-green-500" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Activate This User</p>
+              </TooltipContent>
+            </Tooltip>
+          )}
           {(can.edit || can.delete) && (
             <BreadActionsCell
               record={row.original}
@@ -450,8 +506,29 @@ export default function UsersPage({
   users: PaginatedData<User>;
   roles: Role[];
 }) {
+  const { fireAlert } = useApp();
+
   const bulkAction = (action: string, selectedIds: number[]) => {
-    console.log(`Performing ${action} on:`, selectedIds);
+    if (action === "delete") {
+      fireAlert({
+        title: "Delete Users",
+        description:
+          "Are you sure you want to delete the selected users? This action cannot be undone.",
+        confirmText: "Yes, Delete",
+        cancelText: "Cancel",
+        onConfirm: () => {
+          router.post("/admin/users/bulk-action", {
+            action,
+            ids: selectedIds,
+          });
+        },
+      });
+    } else {
+      router.post("/admin/users/bulk-action", {
+        action,
+        ids: selectedIds,
+      });
+    }
   };
 
   return (

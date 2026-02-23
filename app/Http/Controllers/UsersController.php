@@ -126,9 +126,15 @@ class UsersController extends Controller
             User::whereIn('id', $input->array('ids'))
                 ->update(['status' => $input['action']]);
 
+            $status = [
+                'active' => 'activated',
+                'inactive' => 'deactivated',
+                'banned' => 'banned'
+            ][$input->string('action')];
+
             return inertia()
                 ->back()
-                ->with('success', 'Selected users updated successfully.');
+                ->with('success', 'Selected users ' . $status . ' successfully.');
         }
 
         return inertia()

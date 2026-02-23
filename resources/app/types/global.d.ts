@@ -14,6 +14,7 @@ declare global {
     last_name: string;
     username: string;
     email: string;
+    status: string;
     display_name?: string;
     avatar_url?: string;
     created_at?: string;

@@ -2,19 +2,42 @@ import {
   createContext,
   useContext,
   useEffect,
+  useState,
   useMemo,
   ReactNode,
 } from "react";
 
-import { CircleGauge, type LucideIcon } from "lucide-react";
+import { CircleGauge, Loader2, type LucideIcon } from "lucide-react";
 import { usePage } from "@inertiajs/react";
 import { ThemeProvider } from "next-themes";
 import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+
 import type { AppContextValue, MenuItem, Menu } from "@/types/context";
 
 import { DashboardMenuItems } from "@/lib/consts";
+
+interface AlertState {
+  open: boolean;
+  loading: boolean;
+  title: string;
+  confirmText: string;
+  cancelText: string;
+  description: string;
+  onClose: () => void;
+  onConfirm: () => void;
+}
 
 export const AppContext = createContext<AppContextValue | null>(null);
 
@@ -29,6 +52,17 @@ export const useApp = (): AppContextValue => {
 // Inner provider that uses usePage (must be inside Inertia's App component)
 const AppContextProvider = ({ children }: { children: ReactNode }) => {
   const { props } = usePage<{ app: AppConfig; auth: { user: User | null } }>();
+
+  const [alert, setAlert] = useState<AlertState>({
+    open: false,
+    loading: false,
+    title: "",
+    description: "",
+    confirmText: "Yes",
+    cancelText: "Close",
+    onClose: () => setAlert((prev: AlertState) => ({ ...prev, open: false })),
+    onConfirm: () => {},
+  });
 
   useEffect(() => {
     const flash = props.flash as {
@@ -174,6 +208,20 @@ const AppContextProvider = ({ children }: { children: ReactNode }) => {
   // Context value to be provided to children components
   const value: AppContextValue = {
     app: props.app || ({} as AppConfig),
+    alert,
+    fireAlert: (alert: Partial<AlertState>) =>
+      setAlert({
+        open: alert.open || true,
+        loading: alert.loading || false,
+        title: alert.title || "",
+        description: alert.description || "",
+        confirmText: alert.confirmText || "Yes",
+        cancelText: alert.cancelText || "Close",
+        onClose: () =>
+          alert.onClose ||
+          setAlert((prev: AlertState) => ({ ...prev, open: false })),
+        onConfirm: alert.onConfirm || (() => {}),
+      }),
     menu,
     currentMenuItem,
     user: props.auth.user || (null as User | null),
@@ -183,7 +231,38 @@ const AppContextProvider = ({ children }: { children: ReactNode }) => {
     canAny,
   };
 
-  return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
+  return (
+    <AppContext.Provider value={value}>
+      {children}
+      {/* ─── Global Alert ─────────────────────────────────────────────── */}
+      <AlertDialog open={alert.open} onOpenChange={alert.onClose}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{alert.title}</AlertDialogTitle>
+            <AlertDialogDescription>{alert.description}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={alert.loading}>
+              {alert.cancelText}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={alert.onConfirm}
+              disabled={alert.loading}
+            >
+              {alert.loading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                alert.confirmText
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </AppContext.Provider>
+  );
 };
 
 export const AppProvider = ({ children }: { children: ReactNode }) => {

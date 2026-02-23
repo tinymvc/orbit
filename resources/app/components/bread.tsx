@@ -748,7 +748,7 @@ export default function Bread<
                   placeholder={`Search ${config.name.toLowerCase()}...`}
                   value={searchQuery}
                   onChange={handleSearchChange}
-                  className="pl-8 h-8.5 text-[0.8rem]"
+                  className="pl-8 h-8.5 text-sm"
                 />
               </div>
             )}
