@@ -19,6 +19,7 @@ return new class {
                 'first_name' => 'Shahin',
                 'last_name' => 'Moyshan',
                 'password' => bcrypt('password'),
+                'status' => User::STATUS_ACTIVE,
             ]
         );
 

@@ -19,6 +19,12 @@ use function is_array;
  */
 trait HasRoles
 {
+    /** User status constants */
+    public const STATUS_ACTIVE = 'active';
+    public const STATUS_INACTIVE = 'inactive';
+    public const STATUS_UNVERIFIED = 'unverified';
+    public const STATUS_SUSPENDED = 'suspended';
+
     /**
      * Define the many-to-many relationship between users and roles.
      *
