@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Role;
 use App\Models\User;
+use Spark\Facades\Log;
 use Spark\Http\Request;
 use function in_array;
 
@@ -108,7 +109,7 @@ class UsersController extends Controller
     public function bulkAction(Request $request)
     {
         $input = $request->validate([
-            'action' => 'required|string|in:delete,active,inactive,banned',
+            'action' => 'required|string|in:delete,active,inactive,banned,send-reset-link,send-email-verification',
             'ids' => 'required|array|min:1',
         ]);
 
@@ -135,6 +136,42 @@ class UsersController extends Controller
             return inertia()
                 ->back()
                 ->with('success', "Selected users $status successfully.");
+        } elseif ($input->string('action') === 'send-reset-link') {
+            authorize('permission', 'users.edit');
+
+            /**  @var \App\Models\User[] $users */
+            $users = User::whereIn('id', $input->array('ids'))->get();
+
+            foreach ($users as $user) {
+                try {
+                    $user->sendPasswordResetNotification();
+                } catch (\Exception $e) {
+                    Log::error("Failed to send password reset notification to user ID {$user->id}: " . $e->getMessage());
+                }
+            }
+
+            return inertia()
+                ->back()
+                ->with('success', 'Password reset links sent successfully.');
+        } elseif ($input->string('action') === 'send-email-verification') {
+            authorize('permission', 'users.edit');
+
+            /**  @var \App\Models\User[] $users */
+            $users = User::whereIn('id', $input->array('ids'))->get();
+
+            foreach ($users as $user) {
+                if (!$user->hasVerifiedEmail()) {
+                    try {
+                        $user->sendEmailVerificationNotification();
+                    } catch (\Exception $e) {
+                        Log::error("Failed to send email verification notification to user ID {$user->id}: " . $e->getMessage());
+                    }
+                }
+            }
+
+            return inertia()
+                ->back()
+                ->with('success', 'Email verification links sent successfully.');
         }
 
         return inertia()

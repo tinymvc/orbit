@@ -35,6 +35,14 @@ class User extends Model
         return carbon($value)->toFormattedDateString();
     }
 
+    public function getEmailVerifiedAtAttribute($value): null|string
+    {
+        if (empty($value)) {
+            return null;
+        }
+        return carbon($value)->toFormattedDateTimeString();
+    }
+
     public function getDisplayNameAttribute(): string
     {
         if (!empty($this->attributes['first_name'])) {

@@ -5,10 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\ResetPasswordLink;
 use App\Models\User;
 use Spark\Facades\Auth;
-use Spark\Facades\DB;
 use Spark\Facades\Hash;
 use Spark\Facades\Log;
-use Spark\Facades\Mail;
 use Spark\Http\Request;
 use function in_array;
 
@@ -129,29 +127,8 @@ class AuthController extends Controller
                 ]);
             }
 
-            $token = Hash::random(60);
-            $tokenEncrypted = Hash::encrypt($token);
-
             try {
-                DB::transaction(function () use ($user, $token, $tokenEncrypted) {
-                    $mail = Mail::to($user->email, $user->display_name)
-                        ->subject('Password Reset Request')
-                        ->view('emails.password-reset', [
-                            'user' => $user,
-                            'token' => $tokenEncrypted,
-                        ]);
-
-                    if ($mail->send()) {
-                        ResetPasswordLink::insert([
-                            'user_id' => $user->id,
-                            'token' => $token,
-                            'created_at' => now(),
-                            'expires_at' => now()->addMinutes(60),
-                        ]);
-                    } else {
-                        throw new \Exception('Failed to send password reset email. Please try again later.');
-                    }
-                });
+                send_forgot_password_email($user);
             } catch (\Exception $e) {
                 Log::error("Password reset request failed for user ID {$user->id}: " . $e->getMessage());
                 return back()->withErrors([

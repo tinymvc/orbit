@@ -17,6 +17,7 @@ declare global {
     status: string;
     display_name?: string;
     avatar_url?: string;
+    email_verified_at?: string;
     created_at?: string;
     privileges?: string[];
     roles?: Role[];

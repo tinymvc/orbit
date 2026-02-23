@@ -2,9 +2,12 @@
 
 namespace App\Security;
 
+use App\Models\ResetPasswordLink;
 use App\Models\Role;
 use Spark\Database\Relation\BelongsToMany;
 use Spark\Exceptions\Http\AuthorizationException;
+use Spark\Facades\Hash;
+use Spark\Facades\Mail;
 use Spark\Support\Collection;
 use function func_get_args;
 use function is_array;
@@ -111,6 +114,76 @@ trait HasRoles
      */
     public function password(string $password): bool
     {
-        return \Spark\Facades\Hash::verify($password, $this->password);
+        return Hash::verify($password, $this->password);
+    }
+
+    /**
+     * Send a password reset notification to the user's email address.
+     *
+     * This method generates a unique token, stores it in the database, and sends an email
+     * to the user with instructions on how to reset their password.
+     *
+     * @throws \Exception If there is an error sending the email or storing the token.
+     */
+    public function sendPasswordResetNotification(): void
+    {
+        $token = Hash::random(60);
+        $tokenEncrypted = Hash::encrypt($token);
+
+        $mail = Mail::to($this->email, $this->display_name)
+            ->subject('Password Reset Request')
+            ->view('emails.password-reset', [
+                'user' => $this,
+                'token' => $tokenEncrypted,
+            ]);
+
+        if ($mail->send()) {
+            ResetPasswordLink::insert([
+                'user_id' => $this->id,
+                'token' => $token,
+                'created_at' => now(),
+                'expires_at' => now()->addMinutes(60),
+            ]);
+        } else {
+            throw new \Exception('Failed to send password reset email. Please try again later.');
+        }
+    }
+
+    /**
+     * Check if the user's email address has been verified.
+     *
+     * @return bool True if the email is verified, false otherwise.
+     */
+    public function hasVerifiedEmail(): bool
+    {
+        return !empty($this->email_verified_at) && $this->status !== 'unverified';
+    }
+
+    /**
+     * Send an email verification notification to the user's email address.
+     *
+     * This method generates a unique token, stores it in the database, and sends an email
+     * to the user with instructions on how to verify their email address.
+     *
+     * @throws \Exception If there is an error sending the email or storing the token.
+     */
+    public function sendEmailVerificationNotification(): void
+    {
+        $token = Hash::encryptArray([
+            'user_id' => $this->id,
+            'email' => $this->email,
+            'timestamp' => now()->toDateTimeString(),
+        ]);
+
+        $mail = Mail::to($this->email, $this->display_name)
+            ->subject('Email Verification')
+            ->view('emails.email-verification', [
+                'user' => $this,
+                'token' => $token,
+            ]);
+
+        if (!$mail->send()) {
+            throw new \Exception('Failed to send email verification. Please try again later.');
+        }
     }
 }

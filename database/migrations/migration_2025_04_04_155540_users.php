@@ -15,6 +15,7 @@ return new class {
             $table->string('password', 255)->required();
             $table->string('remember_token', 200)->nullable();
             $table->enum('status', ['active', 'inactive', 'banned', 'verified', 'unverified'])->default('active');
+            $table->timestamp('email_verified_at')->nullable();
             $table->timestamps();
             $table->index('status');
             $table->index(['email', 'username']);

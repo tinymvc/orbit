@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import type { Row } from "@tanstack/react-table";
 import { Link, usePage, router } from "@inertiajs/react";
-import { Ban, Check, ShieldUser } from "lucide-react";
+import { Ban, Check, KeyRound, ShieldUser } from "lucide-react";
 
 import {
   Tooltip,
@@ -21,6 +21,8 @@ import {
 } from "@/components/ui/tooltip";
 import { headline } from "@/lib/utils";
 import { useApp } from "@/contexts/app";
+
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 
 // ─── Type definitions ───────────────────────────────────────────────────────
 
@@ -393,6 +395,31 @@ const columnsCallback =
               onEdit={handleEdit}
               onDelete={handleDelete}
               can={can}
+              extraItems={
+                <>
+                  <DropdownMenuItem
+                    onClick={() =>
+                      bulkAction("send-reset-link", [row.original.id])
+                    }
+                  >
+                    <KeyRound className="mr-1 size-4" />
+                    Send Forgot Password Link
+                  </DropdownMenuItem>
+                  {!row.original.email_verified_at &&
+                    row.original.status === "unverified" && (
+                      <DropdownMenuItem
+                        onClick={() =>
+                          bulkAction("send-email-verification", [
+                            row.original.id,
+                          ])
+                        }
+                      >
+                        <KeyRound className="mr-1 size-4" />
+                        Send Email Verification Link
+                      </DropdownMenuItem>
+                    )}
+                </>
+              }
             />
           )}
         </div>
