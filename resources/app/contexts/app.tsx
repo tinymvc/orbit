@@ -26,7 +26,7 @@ import {
 
 import type { AppContextValue, MenuItem, Menu } from "@/types/context";
 
-import { DashboardMenuItems } from "@/lib/consts";
+import { navMain, navSecondary, hiddenItems } from "@/config/menu";
 
 interface AlertState {
   open: boolean;
@@ -113,11 +113,9 @@ const AppContextProvider = ({ children }: { children: ReactNode }) => {
       });
 
   const menu: Menu = {
-    navMain: filterMenuItemsByPermissions(DashboardMenuItems.navMain || []),
-    navSecondary: filterMenuItemsByPermissions(
-      DashboardMenuItems.navSecondary || [],
-    ),
-    hidden: DashboardMenuItems.hidden || [],
+    navMain: filterMenuItemsByPermissions(navMain || []),
+    navSecondary: filterMenuItemsByPermissions(navSecondary || []),
+    hidden: hiddenItems || [],
   };
 
   const isActive = (url?: string): boolean =>

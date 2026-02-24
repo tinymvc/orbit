@@ -15,7 +15,7 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { useApp } from "@/contexts/app";
-import { Eclipse } from "lucide-react";
+import { siteIdentity } from "@/config/sidebar";
 
 interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {}
 
@@ -31,9 +31,18 @@ export function AppSidebar({ ...props }: AppSidebarProps) {
               asChild
               className="data-[slot=sidebar-menu-button]:p-1.5!"
             >
-              <Link href="/admin">
-                <Eclipse className="size-5!" />
-                <span className="text-base font-bold">{app.name}</span>
+              <Link href={siteIdentity.home_url}>
+                {siteIdentity.icon && <siteIdentity.icon className="size-5!" />}
+                {siteIdentity.image && (
+                  <img
+                    src={siteIdentity.image}
+                    alt={siteIdentity.name}
+                    className="size-5! rounded-full object-cover"
+                  />
+                )}
+                <span className="text-base font-bold">
+                  {app.name || siteIdentity.name}
+                </span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
