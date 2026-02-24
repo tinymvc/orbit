@@ -6,6 +6,7 @@ import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DatePicker } from "@/components/date-picker";
 import { DateTimePicker } from "@/components/date-time-picker";
+import { RichTextEditor } from "@/components/bread/rich-text-editor";
 import {
   Select,
   SelectContent,
@@ -218,18 +219,14 @@ export const FieldRenderer = React.memo<FieldRendererProps>(
           />
         )}
 
-        {/* Rich text (textarea with more rows for now) */}
+        {/* Rich text editor (Tiptap) */}
         {field.type === "richtext" && (
-          <Textarea
-            id={field.name}
+          <RichTextEditor
             value={(value as string) ?? ""}
-            onChange={(e) => onChange(e.target.value)}
+            onChange={(html) => onChange(html)}
             placeholder={field.placeholder || `Enter ${label.toLowerCase()}`}
-            rows={field.rows || 10}
-            maxLength={field.maxLength}
-            required={field.required}
             disabled={isDisabled}
-            className="font-mono text-sm"
+            minHeight={field.rows ? `${field.rows * 1.5}rem` : "10rem"}
           />
         )}
 

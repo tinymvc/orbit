@@ -2,6 +2,7 @@ import * as React from "react";
 import type { Row, ColumnDef } from "@tanstack/react-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { headline } from "@/lib/utils";
 import { BreadActionsCell, type BreadConfig } from "@/components/bread";
 import { type FieldSchema, AutoFormFields, resolveAccessor } from "./fields";
@@ -87,9 +88,13 @@ export interface ServerColumnSchema {
   className?: string;
   accessor?: string;
   imageSize?: string;
-  /** For belongs_to columns — fields to concat from the relation */
+  /** For belongs_to / avatar columns — fields to concat from the relation */
   display?: string[];
   fallback?: string;
+  /** For avatar columns — which field in the relation holds the image URL */
+  avatarField?: string;
+  /** For avatar columns — optional subtitle field */
+  descriptionField?: string;
 }
 
 export interface ServerFilter {
@@ -406,6 +411,110 @@ export function buildColumnsFromSchema(
                     .trim() ||
                   (col.fallback ? String(related[col.fallback] ?? "") : "—");
                 return <span className="text-sm">{name}</span>;
+              }
+
+              case "avatar": {
+                const related = record[col.key] as
+                  | Record<string, unknown>
+                  | null
+                  | undefined;
+                if (!related) {
+                  return (
+                    <span className="text-muted-foreground text-sm">—</span>
+                  );
+                }
+                const displayFields = col.display ?? [];
+                const name =
+                  displayFields
+                    .map((f) => String(related[f] ?? ""))
+                    .join(" ")
+                    .trim() ||
+                  (col.fallback ? String(related[col.fallback] ?? "") : "—");
+                const avatarUrl = col.avatarField
+                  ? String(related[col.avatarField] ?? "")
+                  : "";
+                const description = col.descriptionField
+                  ? String(related[col.descriptionField] ?? "")
+                  : "";
+                const initials = name
+                  .split(" ")
+                  .map((w: string) => w[0])
+                  .join("")
+                  .slice(0, 2)
+                  .toUpperCase();
+
+                return (
+                  <div className="flex items-center gap-2.5">
+                    <Avatar className="size-8">
+                      {avatarUrl ? (
+                        <AvatarImage src={avatarUrl} alt={name} />
+                      ) : null}
+                      <AvatarFallback className="text-xs">
+                        {initials || "?"}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex flex-col">
+                      <span className="text-sm font-medium leading-tight">
+                        {name}
+                      </span>
+                      {description && (
+                        <span className="text-xs text-muted-foreground leading-tight">
+                          {description}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              }
+
+              case "html": {
+                const htmlStr = String(rawValue ?? "");
+                if (!htmlStr) {
+                  return (
+                    <span className="text-muted-foreground text-sm">—</span>
+                  );
+                }
+                // If truncate is set, strip tags and truncate plain text
+                if (col.truncate) {
+                  const maxLen =
+                    typeof col.truncate === "number" ? col.truncate : 50;
+                  const parser = new DOMParser();
+                  const doc = parser.parseFromString(htmlStr, "text/html");
+                  const plain = doc.body.textContent ?? "";
+                  const display =
+                    plain.length > maxLen
+                      ? plain.slice(0, maxLen) + "…"
+                      : plain;
+                  return (
+                    <span
+                      className={`text-sm ${col.className ?? ""}`}
+                      title={plain}
+                    >
+                      {display}
+                    </span>
+                  );
+                }
+                return (
+                  <div
+                    className={`text-sm prose prose-sm dark:prose-invert max-w-none ${col.className ?? ""}`}
+                    dangerouslySetInnerHTML={{ __html: htmlStr }}
+                  />
+                );
+              }
+
+              case "thumbnail": {
+                return rawValue ? (
+                  <img
+                    src={String(rawValue)}
+                    alt=""
+                    className={
+                      col.imageSize ??
+                      "w-16 h-12 rounded-md object-cover border"
+                    }
+                  />
+                ) : (
+                  <span className="text-muted-foreground">—</span>
+                );
               }
 
               case "text":

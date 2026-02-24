@@ -10,6 +10,9 @@ namespace App\Modules\Bread\Table;
  *   Column::make('status')->badge()->badgeMap([...])
  *   Column::make('user')->belongsTo()->display(['first_name', 'last_name'])->fallback('username')
  *   Column::make('thumbnail')->image()->imageSize('w-12 h-12 rounded-md object-cover')
+ *   Column::make('user')->avatar()->avatarField('avatar')->display(['first_name', 'last_name'])
+ *   Column::make('content')->html()->truncate(100)
+ *   Column::make('thumbnail')->thumbnail()
  */
 class Column
 {
@@ -25,6 +28,8 @@ class Column
     protected ?string $imageSize = null;
     protected array $display = [];
     protected ?string $fallback = null;
+    protected ?string $avatarFieldName = null;
+    protected ?string $descriptionField = null;
 
     // ─── Constructor & Factory ──────────────────────────────────────────
 
@@ -73,6 +78,36 @@ class Column
     public function belongsTo(): static
     {
         $this->type = 'belongs_to';
+        return $this;
+    }
+
+    /**
+     * Avatar column — circular avatar image + name text.
+     * Use display() for name fields and avatarField() for the image field.
+     *
+     * @example Column::make('user')->avatar()->avatarField('avatar')->display(['first_name', 'last_name'])
+     */
+    public function avatar(): static
+    {
+        $this->type = 'avatar';
+        return $this;
+    }
+
+    /**
+     * Render raw HTML content.
+     */
+    public function html(): static
+    {
+        $this->type = 'html';
+        return $this;
+    }
+
+    /**
+     * Thumbnail card — larger image preview with rounded corners.
+     */
+    public function thumbnail(): static
+    {
+        $this->type = 'thumbnail';
         return $this;
     }
 
@@ -163,6 +198,28 @@ class Column
         return $this;
     }
 
+    /**
+     * Specify which field holds the avatar image URL (for avatar columns).
+     *
+     * @example ->avatarField('profile_photo')
+     */
+    public function avatarField(string $field): static
+    {
+        $this->avatarFieldName = $field;
+        return $this;
+    }
+
+    /**
+     * Show a description/subtitle below the name (for avatar columns).
+     *
+     * @example ->descriptionField('email')
+     */
+    public function descriptionField(string $field): static
+    {
+        $this->descriptionField = $field;
+        return $this;
+    }
+
     // ─── Getters ────────────────────────────────────────────────────────
 
     public function getKey(): string
@@ -203,6 +260,10 @@ class Column
             $arr['display'] = $this->display;
         if ($this->fallback !== null)
             $arr['fallback'] = $this->fallback;
+        if ($this->avatarFieldName !== null)
+            $arr['avatarField'] = $this->avatarFieldName;
+        if ($this->descriptionField !== null)
+            $arr['descriptionField'] = $this->descriptionField;
 
         return $arr;
     }

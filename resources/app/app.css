@@ -9,6 +9,8 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+@plugin "@tailwindcss/typography";
+
 @source '../views/**/*.blade.php';
 @source './**/*.{ts,tsx}';
 

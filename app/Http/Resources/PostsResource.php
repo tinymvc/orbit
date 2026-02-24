@@ -4,7 +4,13 @@ namespace App\Http\Resources;
 
 use App\Models\Post;
 use App\Models\User;
-use App\Modules\Bread\Form\Field;
+use App\Modules\Bread\Form\DatePicker;
+use App\Modules\Bread\Form\FileUpload;
+use App\Modules\Bread\Form\RichEditor;
+use App\Modules\Bread\Form\Select;
+use App\Modules\Bread\Form\SlugInput;
+use App\Modules\Bread\Form\Textarea;
+use App\Modules\Bread\Form\TextInput;
 use App\Modules\Bread\Resource;
 use App\Modules\Bread\Table\BulkAction;
 use App\Modules\Bread\Table\Column;
@@ -12,7 +18,7 @@ use App\Modules\Bread\Table\Filter;
 use Inertia\Facades\Props;
 
 /**
- * Posts BREAD Resource — Filament-style fluent definition.
+ * Posts BREAD Resource
  *
  * This is the ONLY file you need to create per CRUD entity.
  * Everything else (controller, frontend page) is handled automatically.
@@ -39,23 +45,21 @@ class PostsResource extends Resource
 
     // ─── Drawer ─────────────────────────────────────────────────────────
 
-    protected static string $drawerWidth = 'lg';
+    protected static string $drawerWidth = 'xl';
 
     // ─── Form Fields ────────────────────────────────────────────────────
 
     public static function fields(): array
     {
         return [
-            Field::make('title')
-                ->text()
+            TextInput::make('title')
                 ->label('Title')
                 ->required()
                 ->maxLength(255)
                 ->placeholder('Enter post title')
                 ->columnSpan(2),
 
-            Field::make('slug')
-                ->slug()
+            SlugInput::make('slug')
                 ->from('title')
                 ->label('Slug')
                 ->required()
@@ -64,14 +68,12 @@ class PostsResource extends Resource
                 ->placeholder('auto-generated-from-title')
                 ->description('URL-friendly version of the title. Auto-generated on create.'),
 
-            Field::make('user_id')
-                ->select()
+            Select::make('user_id')
                 ->label('Author')
                 ->required()
                 ->options('dynamic:authors'),
 
-            Field::make('status')
-                ->select()
+            Select::make('status')
                 ->label('Status')
                 ->required()
                 ->default('draft')
@@ -83,8 +85,7 @@ class PostsResource extends Resource
                 ])
                 ->in('draft,published,archived,scheduled'),
 
-            Field::make('thumbnail')
-                ->fileUpload()
+            FileUpload::make('thumbnail')
                 ->label('Thumbnail')
                 ->uploadTo('posts')
                 ->acceptedTypes(['jpg', 'jpeg', 'png', 'webp', 'gif'])
@@ -93,8 +94,7 @@ class PostsResource extends Resource
                 ->description('Upload a thumbnail image for the post.')
                 ->columnSpan(2),
 
-            Field::make('excerpt')
-                ->textarea()
+            Textarea::make('excerpt')
                 ->label('Excerpt')
                 ->required()
                 ->maxLength(500)
@@ -102,22 +102,21 @@ class PostsResource extends Resource
                 ->placeholder('Brief summary of the post...')
                 ->columnSpan(2),
 
-            Field::make('content')
-                ->richText()
+            RichEditor::make('content')
                 ->label('Content')
                 ->required()
                 ->rows(12)
                 ->placeholder('Write the full post content here...')
                 ->columnSpan(2),
 
-            Field::make('published_at')
-                ->dateTime()
+            DatePicker::make('published_at')
+                ->withTime()
                 ->label('Published At')
                 ->description('When the post was or will be published.')
                 ->visibleWhen(['status' => 'published']),
 
-            Field::make('scheduled_at')
-                ->dateTime()
+            DatePicker::make('scheduled_at')
+                ->withTime()
                 ->label('Scheduled At')
                 ->disablePastDates()
                 ->description('Future date/time when the post should go live.')

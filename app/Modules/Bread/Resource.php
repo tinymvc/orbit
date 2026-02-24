@@ -24,7 +24,10 @@ use function count;
  *       protected static string $model = \App\Models\Post::class;
  *       public static function fields(): array {
  *           return [
- *               Field::make('title')->text()->required()->maxLength(255),
+ *               TextInput::make('title')->required()->maxLength(255),
+ *               Select::make('status')->options([...])->in('draft,published'),
+ *               FileUpload::make('thumbnail')->uploadTo('posts'),
+ *               RichEditor::make('content')->required(),
  *           ];
  *       }
  *       ...
