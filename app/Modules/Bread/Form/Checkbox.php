@@ -20,7 +20,7 @@ class Checkbox extends Field
         return 'checkbox';
     }
 
-    public function toValidationRule(?int $recordId = null): ?string
+    public function toValidationRule(null|int $recordId = null): string
     {
         return 'boolean';
     }

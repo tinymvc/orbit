@@ -14,11 +14,11 @@ namespace App\Modules\Bread\Form;
 class TextInput extends Field
 {
     protected string $inputType = 'text';
-    protected ?int $maxLength = null;
-    protected ?float $min = null;
-    protected ?float $max = null;
-    protected ?float $step = null;
-    protected ?string $unique = null;
+    protected null|int $maxLength = null;
+    protected null|float $min = null;
+    protected null|float $max = null;
+    protected null|float $step = null;
+    protected null|string $unique = null;
 
     public static function make(string $name): static
     {
@@ -110,7 +110,7 @@ class TextInput extends Field
         return $arr;
     }
 
-    public function toValidationRule(?int $recordId = null): ?string
+    public function toValidationRule(null|int $recordId = null): null|string
     {
         $parts = [$this->required ? 'required' : 'nullable'];
 

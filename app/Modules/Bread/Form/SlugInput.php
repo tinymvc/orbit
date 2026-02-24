@@ -12,9 +12,9 @@ use Spark\Support\Str;
  */
 class SlugInput extends Field
 {
-    protected ?string $slugFrom = null;
-    protected ?string $unique = null;
-    protected ?int $maxLength = null;
+    protected null|string $slugFrom = null;
+    protected null|string $unique = null;
+    protected null|int $maxLength = null;
 
     public static function make(string $name): static
     {
@@ -35,7 +35,7 @@ class SlugInput extends Field
         return $this;
     }
 
-    public function unique(string $table, ?string $column = null): static
+    public function unique(string $table, null|string $column = null): static
     {
         $this->unique = $column ? "$table,$column" : $table;
         return $this;
@@ -63,7 +63,7 @@ class SlugInput extends Field
         return $arr;
     }
 
-    public function toValidationRule(?int $recordId = null): ?string
+    public function toValidationRule(null|int $recordId = null): null|string
     {
         $parts = [$this->required ? 'required' : 'nullable'];
 

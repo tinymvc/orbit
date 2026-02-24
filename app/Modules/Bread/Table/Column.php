@@ -2,6 +2,8 @@
 
 namespace App\Modules\Bread\Table;
 
+use Spark\Contracts\Support\Arrayable;
+
 /**
  * Fluent column builder for BREAD table resources.
  *
@@ -14,22 +16,22 @@ namespace App\Modules\Bread\Table;
  *   Column::make('content')->html()->truncate(100)
  *   Column::make('thumbnail')->thumbnail()
  */
-class Column
+class Column implements Arrayable
 {
     protected string $key;
-    protected ?string $header = null;
+    protected null|string $header = null;
     protected string $type = 'text';
-    protected ?array $badgeMap = null;
+    protected null|array $badgeMap = null;
     protected bool $clickToEdit = false;
     protected int|bool|null $truncate = null;
     protected bool $visible = true;
-    protected ?string $className = null;
-    protected ?string $accessor = null;
-    protected ?string $imageSize = null;
+    protected null|string $className = null;
+    protected null|string $accessor = null;
+    protected null|string $imageSize = null;
     protected array $display = [];
-    protected ?string $fallback = null;
-    protected ?string $avatarFieldName = null;
-    protected ?string $descriptionField = null;
+    protected null|string $fallback = null;
+    protected null|string $avatarFieldName = null;
+    protected null|string $descriptionField = null;
 
     // ─── Constructor & Factory ──────────────────────────────────────────
 

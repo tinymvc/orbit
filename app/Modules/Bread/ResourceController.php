@@ -5,7 +5,7 @@ namespace App\Modules\Bread;
 use Inertia\Facades\Props;
 use Spark\Facades\Route;
 use Spark\Http\Request;
-use Spark\Support\Str;
+use function is_array;
 
 /**
  * Generic BREAD controller.
@@ -20,43 +20,40 @@ use Spark\Support\Str;
  */
 class ResourceController
 {
-    /** @var class-string<Resource> */
-    protected string $resource;
-
-    public function __construct(string $resource)
+    /**
+     * @param class-string<Resource> $resource
+     */
+    public function __construct(protected string $resource)
     {
-        $this->resource = $resource;
     }
 
     // ─── Index ──────────────────────────────────────────────────────────
 
     public function index(Request $request)
     {
-        $resource = $this->resource;
-
-        if ($resource::getBrowsePerm()) {
-            authorize('permission', $resource::getBrowsePerm());
+        if ($this->resource::getBrowsePerm()) {
+            authorize('permission', $this->resource::getBrowsePerm());
         }
 
-        $model = $resource::getModel();
-        $query = $model::latest($resource::getOrderBy());
+        $model = $this->resource::getModel();
+        $query = $model::latest($this->resource::getOrderBy());
 
-        if (!empty($resource::getWith())) {
-            $query = $query->with(...$resource::getWith());
+        if (!empty($this->resource::getWith())) {
+            $query = $query->with(...$this->resource::getWith());
         }
 
         if ($request->has('search')) {
-            $query = $resource::applySearch($query, $request->input('search'));
+            $query = $this->resource::applySearch($query, $request->input('search'));
         }
 
-        $query = $resource::applyFilters($query, $request);
+        $query = $this->resource::applyFilters($query, $request);
 
         $paginated = $query->paginate($request->input('per_page', 10));
 
-        return inertia($resource::getPage(), [
-            'resource' => Props::once($resource::toSchema(...)),
+        return inertia($this->resource::getPage(), [
+            'resource' => Props::once($this->resource::toSchema(...)),
             'paginated' => $paginated,
-            ...$resource::extraProps(),
+            ...$this->resource::extraProps(),
         ]);
     }
 
@@ -64,35 +61,21 @@ class ResourceController
 
     public function store(Request $request)
     {
-        $resource = $this->resource;
-
-        if ($resource::getCreatePerm()) {
-            authorize('permission', $resource::getCreatePerm());
+        if ($this->resource::getCreatePerm()) {
+            authorize('permission', $this->resource::getCreatePerm());
         }
 
-        // Process file uploads BEFORE validation (replaces $_FILES with paths)
-        $uploadedFiles = $resource::processFileUploads($request);
+        [$data, $uploadedFiles] = $this->setupDataForStore($request);
 
-        $rules = $resource::storeRules() ?? $resource::buildRulesFromFields();
-
-        // Remove file field rules if files were uploaded (already processed)
-        foreach ($uploadedFiles as $fieldName => $_) {
-            unset($rules[$fieldName]);
-        }
-
-        $input = $request->validate($rules);
-        $data = [...$input->all(), ...$uploadedFiles];
-        $data = $resource::mutateBeforeCreate($data);
-
-        $model = $resource::getModel();
+        $model = $this->resource::getModel();
         $record = $model::create($data);
 
         if ($record->wasCreated()) {
-            $resource::afterCreate($record, $data);
+            $this->resource::afterCreate($record, $data);
 
             return inertia()
                 ->back()
-                ->with('success', $resource::getName() . ' created successfully.');
+                ->with('success', $this->resource::getName() . ' created successfully.');
         }
 
         // Clean up uploaded files if creation failed
@@ -102,81 +85,98 @@ class ResourceController
 
         return inertia()
             ->back()
-            ->with('error', 'Failed to create ' . strtolower($resource::getName()) . '.');
+            ->with('error', 'Failed to create ' . strtolower($this->resource::getName()) . '.');
     }
 
     // ─── Update ─────────────────────────────────────────────────────────
 
     public function update(int $id, Request $request)
     {
-        $resource = $this->resource;
-
-        if ($resource::getEditPerm()) {
-            authorize('permission', $resource::getEditPerm());
+        if ($this->resource::getEditPerm()) {
+            authorize('permission', $this->resource::getEditPerm());
         }
 
-        $model = $resource::getModel();
+        $model = $this->resource::getModel();
         $record = $model::findOrFail($id);
 
-        // Process file uploads (deletes old files automatically)
-        $uploadedFiles = $resource::processFileUploads($request, $record);
+        [$data] = $this->setupDataForStore($request, $record);
 
-        $rules = $resource::updateRules($id) ?? $resource::buildRulesFromFields($id);
+        $record->fill($data);
 
+        if ($record->save()) {
+            $this->resource::afterUpdate($record, $data);
+
+            return inertia()
+                ->back()
+                ->with('success', $this->resource::getName() . ' updated successfully.');
+        }
+
+        return inertia()
+            ->back()
+            ->with('error', 'Failed to update ' . strtolower($this->resource::getName()) . '.');
+    }
+
+    // ─── Common Store/Update Logic ─────────────────────────────────────
+
+    protected function setupDataForStore(Request $request, null|\Spark\Database\Model $record = null): array
+    {
+        // Process file uploads BEFORE validation (replaces $_FILES with paths)
+        $uploadedFiles = $this->resource::processFileUploads($request, $record);
+
+        if ($record) {
+            $rules = $this->resource::updateRules($record->id) ?? $this->resource::buildRulesFromFields($record->id);
+        } else {
+            $rules = $this->resource::storeRules() ?? $this->resource::buildRulesFromFields();
+        }
+
+        // Remove file field rules if files were uploaded (already processed)
         foreach ($uploadedFiles as $fieldName => $_) {
             unset($rules[$fieldName]);
         }
 
         $input = $request->validate($rules);
         $data = [...$input->all(), ...$uploadedFiles];
-        $data = $resource::mutateBeforeUpdate($data, $record);
 
-        $record->fill($data);
+        // Remove any remaining file fields that weren't processed (e.g. optional ones left empty)
+        $data = collect($data)
+            ->filter(
+                fn($value) => !(is_array($value) && isset($value['tmp_name'], $value['tmp_name'], $value['size']))
+            )
+            ->toArray();
 
-        if ($record->save()) {
-            $resource::afterUpdate($record, $data);
+        // Allow Resource to mutate data before creation (e.g. set defaults, generate slugs, etc)
+        $data = $this->resource::mutateBeforeCreate($data);
 
-            return inertia()
-                ->back()
-                ->with('success', $resource::getName() . ' updated successfully.');
-        }
-
-        return inertia()
-            ->back()
-            ->with('error', 'Failed to update ' . strtolower($resource::getName()) . '.');
+        return [$data, $uploadedFiles];
     }
 
     // ─── Destroy ────────────────────────────────────────────────────────
 
     public function destroy(int $id)
     {
-        $resource = $this->resource;
-
-        if ($resource::getDeletePerm()) {
-            authorize('permission', $resource::getDeletePerm());
+        if ($this->resource::getDeletePerm()) {
+            authorize('permission', $this->resource::getDeletePerm());
         }
 
-        $model = $resource::getModel();
+        $model = $this->resource::getModel();
         $record = $model::findOrFail($id);
 
-        $resource::beforeDelete($record);
+        $this->resource::beforeDelete($record);
 
         // Delete associated files
-        $resource::deleteRecordFiles($record);
+        $this->resource::deleteRecordFiles($record);
 
         $model::destroy($id);
 
         return inertia()
             ->back()
-            ->with('success', $resource::getName() . ' deleted successfully.');
+            ->with('success', $this->resource::getName() . ' deleted successfully.');
     }
 
     // ─── Bulk Action ────────────────────────────────────────────────────
 
     public function bulkAction(Request $request)
     {
-        $resource = $this->resource;
-
         $input = $request->validate([
             'action' => 'required|string',
             'ids' => 'required|array|min:1',
@@ -187,17 +187,17 @@ class ResourceController
 
         // Built-in delete action (with file cleanup)
         if ($action === 'delete') {
-            if ($resource::getDeletePerm()) {
-                authorize('permission', $resource::getDeletePerm());
+            if ($this->resource::getDeletePerm()) {
+                authorize('permission', $this->resource::getDeletePerm());
             }
 
-            $model = $resource::getModel();
+            $model = $this->resource::getModel();
 
             // Delete associated files for each record
-            if (!empty($resource::getFileFields())) {
+            if (!empty($this->resource::getFileFields())) {
                 $records = $model::whereIn('id', $ids)->get();
                 foreach ($records as $record) {
-                    $resource::deleteRecordFiles($record);
+                    $this->resource::deleteRecordFiles($record);
                 }
             }
 
@@ -205,17 +205,17 @@ class ResourceController
 
             return inertia()
                 ->back()
-                ->with('success', 'Selected ' . Str::plural(strtolower($resource::getName())) . ' deleted successfully.');
+                ->with('success', 'Selected ' . $this->resource::getTitle() . ' deleted successfully.');
         }
 
         // Try resource custom handler first
-        $result = $resource::handleBulkAction($action, $ids);
+        $result = $this->resource::handleBulkAction($action, $ids);
         if ($result !== null) {
             return $result;
         }
 
         // Check if it's a status-change bulk action with custom column
-        $bulkActions = $resource::bulkActions();
+        $bulkActions = $this->resource::bulkActions();
         $matchedAction = null;
         foreach ($bulkActions as $ba) {
             $baArr = method_exists($ba, 'toArray') ? $ba->toArray() : $ba;
@@ -225,17 +225,17 @@ class ResourceController
             }
         }
 
-        if ($resource::getEditPerm()) {
-            authorize('permission', $resource::getEditPerm());
+        if ($this->resource::getEditPerm()) {
+            authorize('permission', $this->resource::getEditPerm());
         }
 
-        $model = $resource::getModel();
+        $model = $this->resource::getModel();
         $column = $matchedAction['statusColumn'] ?? 'status';
         $model::whereIn('id', $ids)->update([$column => $action]);
 
         return inertia()
             ->back()
-            ->with('success', 'Selected ' . Str::plural(strtolower($resource::getName())) . ' updated successfully.');
+            ->with('success', 'Selected ' . $this->resource::getTitle() . ' updated successfully.');
     }
 
     // ─── Route Registration Helper ──────────────────────────────────────

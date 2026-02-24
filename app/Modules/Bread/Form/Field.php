@@ -2,6 +2,9 @@
 
 namespace App\Modules\Bread\Form;
 
+use Spark\Contracts\Support\Arrayable;
+use function is_array;
+
 /**
  * Abstract base field for BREAD resources.
  *
@@ -11,22 +14,22 @@ namespace App\Modules\Bread\Form;
  * Common properties shared by all field types live here.
  * Type-specific classes (TextInput, Select, FileUpload, etc.) extend this.
  */
-abstract class Field
+abstract class Field implements Arrayable
 {
     protected string $name;
-    protected ?string $label = null;
-    protected ?string $placeholder = null;
+    protected null|string $label = null;
+    protected null|string $placeholder = null;
     protected bool $required = false;
-    protected ?string $description = null;
+    protected null|string $description = null;
     protected mixed $defaultValue = null;
     protected bool $hasDefaultValue = false;
-    protected ?int $colSpan = null;
+    protected null|int $colSpan = null;
     protected bool $disabled = false;
     protected bool $createOnly = false;
     protected bool $editOnly = false;
-    protected ?string $group = null;
+    protected null|string $group = null;
     protected bool $hidden = false;
-    protected ?array $visibleWhen = null;
+    protected null|array $visibleWhen = null;
 
     // ─── Constructor ────────────────────────────────────────────────────
 
@@ -150,7 +153,7 @@ abstract class Field
     }
 
     // File upload stubs — overridden by FileUpload
-    public function getUploadTo(): ?string
+    public function getUploadTo(): null|string
     {
         return null;
     }
@@ -215,10 +218,9 @@ abstract class Field
     /**
      * Build a validation rule string. Override in subclasses for type-specific rules.
      */
-    public function toValidationRule(?int $recordId = null): ?string
+    public function toValidationRule(null|int $recordId = null): null|string
     {
-        $parts = [];
-        $parts[] = $this->required ? 'required' : 'nullable';
+        $parts = [$this->required ? 'required' : 'nullable'];
         return implode('|', $parts);
     }
 }

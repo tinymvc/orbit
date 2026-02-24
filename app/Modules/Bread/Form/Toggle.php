@@ -20,7 +20,7 @@ class Toggle extends Field
         return 'switch';
     }
 
-    public function toValidationRule(?int $recordId = null): ?string
+    public function toValidationRule(null|int $recordId = null): null|string
     {
         return 'boolean';
     }

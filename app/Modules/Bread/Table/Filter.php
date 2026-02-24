@@ -2,6 +2,8 @@
 
 namespace App\Modules\Bread\Table;
 
+use Spark\Contracts\Support\Arrayable;
+
 /**
  * Fluent filter builder for BREAD table resources.
  *
@@ -9,22 +11,23 @@ namespace App\Modules\Bread\Table;
  *   Filter::make('status')->label('Status')->options([...])
  *   Filter::make('user_id')->label('Author')->options('dynamic:authors')
  */
-class Filter
+class Filter implements Arrayable
 {
-    protected string $key;
-    protected ?string $label = null;
-    protected array|string $options = [];
-
     // ─── Constructor & Factory ──────────────────────────────────────────
 
-    public function __construct(string $key)
-    {
-        $this->key = $key;
+    public function __construct(
+        protected string $key,
+        protected null|string $label = null,
+        protected array|string $options = [],
+    ) {
     }
 
-    public static function make(string $key): static
-    {
-        return new static($key);
+    public static function make(
+        string $key,
+        null|string $label = null,
+        array|string $options = [],
+    ): static {
+        return new static($key, $label, $options);
     }
 
     // ─── Setters ────────────────────────────────────────────────────────
@@ -58,7 +61,7 @@ class Filter
     {
         return [
             'key' => $this->key,
-            'label' => $this->label ?? ucfirst(str_replace('_', ' ', $this->key)),
+            'label' => $this->label ?? str($this->key)->headline()->toString(),
             'options' => $this->options,
         ];
     }

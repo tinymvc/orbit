@@ -19,12 +19,12 @@ namespace App\Modules\Bread\Form;
  */
 class FileUpload extends Field
 {
-    protected ?string $uploadTo = null;
+    protected null|string $uploadTo = null;
     protected array $accepted = [];
-    protected ?int $maxFileSize = null;
-    protected ?int $compressQuality = null;
-    protected ?array $resizeDimensions = null;
-    protected ?string $mediaUrl = null;
+    protected null|int $maxFileSize = null;
+    protected null|int $compressQuality = null;
+    protected null|array $resizeDimensions = null;
+    protected null|string $mediaUrl = null;
 
     public static function make(string $name): static
     {
@@ -43,7 +43,7 @@ class FileUpload extends Field
         return true;
     }
 
-    public function getUploadTo(): ?string
+    public function getUploadTo(): null|string
     {
         return $this->uploadTo;
     }
@@ -53,17 +53,17 @@ class FileUpload extends Field
         return $this->accepted;
     }
 
-    public function getMaxFileSize(): ?int
+    public function getMaxFileSize(): null|int
     {
         return $this->maxFileSize;
     }
 
-    public function getCompress(): ?int
+    public function getCompress(): null|int
     {
         return $this->compressQuality;
     }
 
-    public function getResize(): ?array
+    public function getResize(): null|array
     {
         return $this->resizeDimensions;
     }
@@ -148,7 +148,7 @@ class FileUpload extends Field
         return $arr;
     }
 
-    public function toValidationRule(?int $recordId = null): ?string
+    public function toValidationRule(null|int $recordId = null): null|string
     {
         // File upload validation is handled separately by processFileUploads
         return $this->required ? 'required' : 'nullable';

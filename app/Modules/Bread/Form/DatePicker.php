@@ -78,7 +78,7 @@ class DatePicker extends Field
         return $arr;
     }
 
-    public function toValidationRule(?int $recordId = null): ?string
+    public function toValidationRule(null|int $recordId = null): null|string
     {
         $parts = [$this->required ? 'required' : 'nullable', 'date'];
         return implode('|', $parts);

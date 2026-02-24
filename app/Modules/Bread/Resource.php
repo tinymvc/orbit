@@ -6,9 +6,10 @@ use App\Modules\Bread\Form\Field;
 use App\Modules\Bread\Table\BulkAction;
 use App\Modules\Bread\Table\Column;
 use App\Modules\Bread\Table\Filter;
+use Spark\Contracts\Support\Arrayable;
 use Spark\Database\Model;
+use Spark\Database\QueryBuilder;
 use Spark\Http\Request;
-use Spark\Support\Str;
 use function count;
 
 /**
@@ -37,7 +38,7 @@ abstract class Resource
 {
     // ─── Core ───────────────────────────────────────────────────────────
 
-    /** Eloquent model class */
+    /** @param class-string<Model> $model Eloquent model class */
     protected static string $model;
 
     /** Singular display name  (e.g. "Post") */
@@ -137,7 +138,7 @@ abstract class Resource
      * Validation rules for store (create).
      * Return null to auto-generate from fields.
      */
-    public static function storeRules(): ?array
+    public static function storeRules(): null|array
     {
         return null;
     }
@@ -146,7 +147,7 @@ abstract class Resource
      * Validation rules for update.
      * Return null to auto-generate from fields.
      */
-    public static function updateRules(int $id): ?array
+    public static function updateRules(int $id): null|array
     {
         return null;
     }
@@ -155,7 +156,7 @@ abstract class Resource
      * Apply filters to the query based on request parameters.
      * Default implementation uses the filter key as a column name with WHERE =.
      */
-    public static function applyFilters($query, $request)
+    public static function applyFilters(QueryBuilder $query, Request $request)
     {
         foreach (static::filters() as $filter) {
             $key = $filter instanceof Filter ? $filter->getKey() : ($filter['key'] ?? '');
@@ -169,7 +170,7 @@ abstract class Resource
     /**
      * Apply search to the query.
      */
-    public static function applySearch($query, string $search)
+    public static function applySearch(QueryBuilder $query, string $search)
     {
         if (empty(static::$searchable)) {
             return $query;
@@ -178,11 +179,14 @@ abstract class Resource
         $cols = static::$searchable;
 
         if (count($cols) === 1) {
-            return $query->like($cols[0], '%' . $search . '%');
+            return $query->like($cols[0], "%$search%");
         }
 
         $concatExpr = 'CONCAT(' . implode(', " ", ', $cols) . ')';
-        $conditions = implode(' OR ', array_map(fn($c) => "$c LIKE :search", $cols));
+        $conditions = implode(
+            ' OR ',
+            array_map(fn($c) => "$c LIKE :search", $cols)
+        );
         $conditions .= " OR $concatExpr LIKE :search";
 
         return $query->whereRaw($conditions, ['search' => "%$search%"]);
@@ -260,7 +264,10 @@ abstract class Resource
      */
     public static function getFileFields(): array
     {
-        return array_filter(static::fields(), fn(Field $f) => $f->isFileUpload());
+        return array_filter(
+            static::fields(),
+            fn(Field $f) => $f->isFileUpload()
+        );
     }
 
     /**
@@ -364,7 +371,7 @@ abstract class Resource
     protected static function serialise(array $items): array
     {
         return array_map(
-            fn($item) => $item instanceof Field || $item instanceof Column || $item instanceof Filter || $item instanceof BulkAction
+            fn($item) => $item instanceof Arrayable
             ? $item->toArray()
             : $item,
             $items
@@ -378,7 +385,7 @@ abstract class Resource
     {
         return [
             'name' => static::$name,
-            'title' => static::$title ?? Str::plural(static::$name),
+            'title' => static::getTitle(),
             'description' => static::$description,
             'url' => static::$urlPrefix . static::$slug,
 
@@ -407,43 +414,58 @@ abstract class Resource
     {
         return static::$model;
     }
+
     public static function getSlug(): string
     {
         return static::$slug;
     }
+
     public static function getName(): string
     {
         return static::$name;
     }
+
+    public static function getTitle(): string
+    {
+        return static::$title ?? str(self::$name)->plural();
+    }
+
     public static function getPage(): string
     {
         return static::$page;
     }
+
     public static function getWith(): array
     {
         return static::$with;
     }
+
     public static function getOrderBy(): string
     {
         return static::$orderBy;
     }
+
     public static function getOrderDirection(): string
     {
         return static::$orderDirection;
     }
-    public static function getBrowsePerm(): ?string
+
+    public static function getBrowsePerm(): null|string
     {
         return static::$browsePerm;
     }
-    public static function getCreatePerm(): ?string
+
+    public static function getCreatePerm(): null|string
     {
         return static::$createPerm;
     }
-    public static function getEditPerm(): ?string
+
+    public static function getEditPerm(): null|string
     {
         return static::$editPerm;
     }
-    public static function getDeletePerm(): ?string
+
+    public static function getDeletePerm(): null|string
     {
         return static::$deletePerm;
     }

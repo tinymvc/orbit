@@ -2,6 +2,8 @@
 
 namespace App\Modules\Bread\Table;
 
+use Spark\Contracts\Support\Arrayable;
+
 /**
  * Fluent bulk action builder for BREAD table resources.
  *
@@ -9,23 +11,25 @@ namespace App\Modules\Bread\Table;
  *   BulkAction::make('published')->label('Publish Selected')
  *   BulkAction::make('delete')->label('Delete Selected')->destructive()
  */
-class BulkAction
+class BulkAction implements Arrayable
 {
-    protected string $action;
-    protected ?string $label = null;
-    protected string $variant = 'default';
-    protected ?string $statusColumn = null;
-
     // ─── Constructor & Factory ──────────────────────────────────────────
 
-    public function __construct(string $action)
-    {
-        $this->action = $action;
+    public function __construct(
+        protected string $action,
+        protected null|string $label = null,
+        protected string $variant = 'default',
+        protected null|string $statusColumn = null,
+    ) {
     }
 
-    public static function make(string $action): static
-    {
-        return new static($action);
+    public static function make(
+        string $action,
+        null|string $label = null,
+        string $variant = 'default',
+        null|string $statusColumn = null,
+    ): static {
+        return new static($action, $label, $variant, $statusColumn);
     }
 
     // ─── Setters ────────────────────────────────────────────────────────
@@ -65,7 +69,7 @@ class BulkAction
     {
         $arr = [
             'action' => $this->action,
-            'label' => $this->label ?? ucfirst(str_replace('_', ' ', $this->action)),
+            'label' => $this->label ?? str($this->action)->headline()->toString(),
             'variant' => $this->variant,
         ];
 

@@ -10,7 +10,7 @@ namespace App\Modules\Bread\Form;
  */
 class RichEditor extends Field
 {
-    protected ?int $rows = null;
+    protected null|int $rows = null;
 
     public static function make(string $name): static
     {
@@ -42,7 +42,7 @@ class RichEditor extends Field
         return $arr;
     }
 
-    public function toValidationRule(?int $recordId = null): ?string
+    public function toValidationRule(null|int $recordId = null): null|string
     {
         $parts = [$this->required ? 'required' : 'nullable'];
         return implode('|', $parts);

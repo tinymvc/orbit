@@ -13,7 +13,7 @@ class Select extends Field
 {
     protected bool $isMulti = false;
     protected array|string|null $options = null;
-    protected ?string $inValues = null;
+    protected null|string $inValues = null;
 
     public static function make(string $name): static
     {
@@ -68,7 +68,7 @@ class Select extends Field
         return $arr;
     }
 
-    public function toValidationRule(?int $recordId = null): ?string
+    public function toValidationRule(null|int $recordId = null): null|string
     {
         $parts = [$this->required ? 'required' : 'nullable'];
 
