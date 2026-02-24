@@ -5,6 +5,7 @@ namespace App\Modules\Bread;
 use Inertia\Facades\Props;
 use Spark\Facades\Route;
 use Spark\Http\Request;
+use Spark\Routing\RouteGroup;
 use function is_array;
 
 /**
@@ -252,16 +253,36 @@ class ResourceController
      *   PUT    /admin/{slug}/{id}        → update
      *   DELETE /admin/{slug}/{id}        → destroy
      *   POST   /admin/{slug}/bulk-action → bulkAction
+     * 
+     * @param class-string<Resource> $resourceClass
+     * 
+     * @return RouteGroup The route group instance (in case you want to configure middleware, etc)
      */
-    public static function routes(string $resourceClass): void
+    public static function routes(string $resourceClass): RouteGroup
     {
-        $slug = $resourceClass::getSlug();
-        $controller = new static($resourceClass);
+        return Route::group(function () use ($resourceClass) {
+            // Derive slug and name from Resource class
+            $slug = $resourceClass::getSlug();
+            $name = str_replace('/', '.', $slug);
 
-        Route::post("$slug/bulk-action", [$controller, 'bulkAction']);
-        Route::get($slug, [$controller, 'index']);
-        Route::post($slug, [$controller, 'store']);
-        Route::put("$slug/{id}", [$controller, 'update']);
-        Route::delete("$slug/{id}", [$controller, 'destroy']);
+            // Instantiate controller with the Resource class
+            $controller = new static($resourceClass);
+
+            // Register routes
+            Route::post("$slug/bulk-action", [$controller, 'bulkAction'])
+                ->name("$name.actions");
+
+            Route::get($slug, [$controller, 'index'])
+                ->name("$name.index");
+
+            Route::post($slug, [$controller, 'store'])
+                ->name("$name.store");
+
+            Route::put("$slug/{id}", [$controller, 'update'])
+                ->name("$name.update");
+
+            Route::delete("$slug/{id}", [$controller, 'destroy'])
+                ->name("$name.destroy");
+        }); // ->middleware('auth') // You can apply middleware to the whole group if needed
     }
 }

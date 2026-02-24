@@ -22,7 +22,7 @@ trait HasRoles
     /** User status constants */
     public const STATUS_ACTIVE = 'active';
     public const STATUS_INACTIVE = 'inactive';
-    public const STATUS_UNVERIFIED = 'unverified';
+    public const STATUS_BANNED = 'banned';
     public const STATUS_SUSPENDED = 'suspended';
 
     /**
@@ -177,7 +177,7 @@ trait HasRoles
      */
     public function hasVerifiedEmail(): bool
     {
-        return !empty($this->email_verified_at) && $this->status !== 'unverified';
+        return !empty($this->email_verified_at) && $this->status === 'active';
     }
 
     /**

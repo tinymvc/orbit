@@ -387,7 +387,7 @@ abstract class Resource
             'name' => static::$name,
             'title' => static::getTitle(),
             'description' => static::$description,
-            'url' => static::$urlPrefix . static::$slug,
+            'url' => static::getUrl(),
 
             'fields' => static::serialise(static::fields()),
             'columns' => static::serialise(static::columns()),
@@ -428,6 +428,11 @@ abstract class Resource
     public static function getTitle(): string
     {
         return static::$title ?? str(self::$name)->plural();
+    }
+
+    public static function getUrl(): string
+    {
+        return self::$urlPrefix . static::$slug;
     }
 
     public static function getPage(): string
