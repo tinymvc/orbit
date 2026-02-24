@@ -22,6 +22,12 @@ class Privileges
             'edit' => 'Edit Users',
             'delete' => 'Delete Users',
         ],
+        'posts' => [
+            'browse' => 'View Posts Table',
+            'create' => 'Create Posts',
+            'edit' => 'Edit Posts',
+            'delete' => 'Delete Posts',
+        ],
         'settings' => [
             'general' => 'Manage General Settings',
         ],

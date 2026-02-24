@@ -13,6 +13,10 @@ use App\Http\Controllers\{
     RolesController,
     UsersController
 };
+use App\Http\Resources\{
+    PostsResource
+};
+use App\Modules\Bread\ResourceController;
 use Spark\Facades\Route;
 
 Route::group(function () {
@@ -49,6 +53,9 @@ Route::group(function () {
     Route::resource('roles', RolesController::class)
         ->except(['create', 'edit', 'show'])
         ->name('roles');
+
+    // ─── BREAD Resources  ────
+    ResourceController::routes(PostsResource::class);
 })
     ->middleware('auth')
     ->prefix('admin');

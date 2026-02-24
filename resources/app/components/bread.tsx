@@ -318,15 +318,25 @@ const BreadDrawer = React.memo<BreadDrawerProps>(
         setProcessing(true);
         setFormErrors({});
 
+        const hasFiles = Object.values(submitData).some(
+          (v) => v instanceof File,
+        );
+
         const options = {
           preserveScroll: true,
+          forceFormData: hasFiles,
           onSuccess: () => clearDraftAndClose(),
           onError: (errors: Record<string, string>) => setFormErrors(errors),
           onFinish: () => setProcessing(false),
         };
 
         if (record?.id) {
-          router.put(`${config.url}/${record.id}`, submitData as any, options);
+          // Always POST with _method=put so PHP receives $_POST + $_FILES
+          router.post(
+            `${config.url}/${record.id}`,
+            { ...submitData, _method: "put" } as any,
+            { ...options, forceFormData: true },
+          );
         } else {
           router.post(config.url, submitData as any, options);
         }

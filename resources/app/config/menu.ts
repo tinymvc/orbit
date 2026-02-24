@@ -1,5 +1,5 @@
 import { MenuItem } from "@/types/context";
-import { Users, CircleGauge, Settings } from "lucide-react";
+import { Users, CircleGauge, Settings, Rss } from "lucide-react";
 
 export const navMain: MenuItem[] = [
   {
@@ -14,6 +14,12 @@ export const navMain: MenuItem[] = [
     icon: Users,
     permission: ["users.browse"],
   },
+  {
+    title: "Posts",
+    url: "/admin/posts",
+    icon: Rss,
+    permission: ["posts.browse"],
+  },
 ];
 
 export const navSecondary: MenuItem[] = [
@@ -21,11 +27,11 @@ export const navSecondary: MenuItem[] = [
     title: "Settings",
     url: "/admin/settings",
     icon: Settings,
-    permission: ["settings.smtp"],
+    permission: ["settings.general"],
   },
 ];
 
-export const hiddenItems: MenuItem[] = [
+export const breadcrumbSupport: MenuItem[] = [
   {
     title: "Profile",
     url: "/admin/profile",

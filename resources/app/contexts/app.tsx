@@ -26,7 +26,7 @@ import {
 
 import type { AppContextValue, MenuItem, Menu } from "@/types/context";
 
-import { navMain, navSecondary, hiddenItems } from "@/config/menu";
+import { navMain, navSecondary, breadcrumbSupport } from "@/config/menu";
 
 interface AlertState {
   open: boolean;
@@ -115,7 +115,7 @@ const AppContextProvider = ({ children }: { children: ReactNode }) => {
   const menu: Menu = {
     navMain: filterMenuItemsByPermissions(navMain || []),
     navSecondary: filterMenuItemsByPermissions(navSecondary || []),
-    hidden: hiddenItems || [],
+    hidden: breadcrumbSupport || [],
   };
 
   const isActive = (url?: string): boolean =>
