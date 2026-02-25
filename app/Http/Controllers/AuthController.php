@@ -200,7 +200,7 @@ class AuthController extends Controller
             );
 
             if (
-                !isset($token['user_id'], $token['email'], $token['timestamp']) ||
+                !isset($token['user_id'], $token['timestamp']) ||
                 carbon($token['timestamp'])->addMinutes(60)->isPast()
             ) {
                 throw new \Exception('Invalid or expired token');
@@ -220,10 +220,12 @@ class AuthController extends Controller
 
             Auth::login($user);
 
-            return redirect(Auth::getRedirectRoute())
+            return inertia()
+                ->redirect(Auth::getRedirectRoute())
                 ->with('success', 'Your email has been verified successfully. Welcome to the dashboard!');
         } catch (\Exception $e) {
-            return redirect(Auth::getLoginRoute())
+            return inertia()
+                ->redirect(Auth::getLoginRoute())
                 ->with('error', 'The email verification link is invalid. Please contact support for assistance.');
         }
     }

@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import type { Row } from "@tanstack/react-table";
 import { Link, usePage, router } from "@inertiajs/react";
-import { Ban, Check, KeyRound, ShieldUser } from "lucide-react";
+import { Ban, Check, KeyRound, MailCheck, ShieldUser } from "lucide-react";
 
 import {
   Tooltip,
@@ -405,7 +405,7 @@ const columnsCallback =
                     Send Forgot Password Link
                   </DropdownMenuItem>
                   {!row.original.email_verified_at &&
-                    row.original.status === "unverified" && (
+                    row.original.status === "inactive" && (
                       <DropdownMenuItem
                         onClick={() =>
                           bulkAction("send-email-verification", [
@@ -413,7 +413,7 @@ const columnsCallback =
                           ])
                         }
                       >
-                        <KeyRound className="mr-1 size-4" />
+                        <MailCheck className="mr-1 size-4" />
                         Send Email Verification Link
                       </DropdownMenuItem>
                     )}
@@ -443,7 +443,7 @@ const config = (
       options: [
         { value: "active", label: "Active" },
         { value: "banned", label: "Banned" },
-        { value: "unverified", label: "Unverified" },
+        { value: "suspended", label: "Suspended" },
         { value: "inactive", label: "Inactive" },
       ],
     },

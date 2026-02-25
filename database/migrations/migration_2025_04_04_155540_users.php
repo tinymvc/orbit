@@ -8,8 +8,8 @@ return new class {
     {
         Schema::create('users', function (Blueprint $table) {
             $table->id();
-            $table->string('first_name', 80)->unique()->required();
-            $table->string('last_name', 80)->unique()->required();
+            $table->string('first_name', 80)->nullable();
+            $table->string('last_name', 80)->nullable();
             $table->string('username', 100)->unique()->required();
             $table->string('email', 60)->unique()->required();
             $table->string('password', 255)->required();
