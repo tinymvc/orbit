@@ -2,8 +2,10 @@
 
 namespace App\Http\Resources;
 
+use App\Models\Category;
 use App\Models\Post;
 use App\Models\User;
+use App\Modules\Bread\Form\Combobox;
 use App\Modules\Bread\Form\DatePicker;
 use App\Modules\Bread\Form\FileUpload;
 use App\Modules\Bread\Form\RichEditor;
@@ -32,7 +34,10 @@ class PostsResource extends Resource
     protected static null|string $title = 'Posts';
     protected static null|string $description = 'Manage blog posts, drafts, and scheduled publications.';
 
-    protected static array $with = ['user:id,first_name,last_name,username,email'];
+    protected static array $with = [
+        'user:id,first_name,last_name,username,email',
+        'categories:id,name'
+    ];
     protected static array $searchable = ['title', 'slug', 'excerpt'];
 
     // ─── Permissions ────────────────────────────────────────────────────
@@ -72,6 +77,13 @@ class PostsResource extends Resource
                 ->required()
                 ->dynamicOptions('authors'),
 
+            Combobox::make('categories')
+                ->label('Categories')
+                ->relationship('categories', 'id', 'name')
+                ->dynamicOptions('categories')
+                ->placeholder('Select categories...')
+                ->description('Assign one or more categories to this post.'),
+
             Select::make('status')
                 ->label('Status')
                 ->required()
@@ -84,6 +96,21 @@ class PostsResource extends Resource
                 ])
                 ->in('draft,published,archived,scheduled'),
 
+            DatePicker::make('published_at')
+                ->withTime()
+                ->label('Published At')
+                ->description('When the post was or will be published.')
+                ->visibleWhen(['status' => 'published'])
+                ->fullWidth(),
+
+            DatePicker::make('scheduled_at')
+                ->withTime()
+                ->label('Scheduled At')
+                ->disablePastDates()
+                ->description('Future date/time when the post should go live.')
+                ->visibleWhen(['status' => 'scheduled'])
+                ->fullWidth(),
+
             FileUpload::make('thumbnail')
                 ->label('Thumbnail')
                 ->uploadTo('posts')
@@ -95,7 +122,6 @@ class PostsResource extends Resource
 
             Textarea::make('excerpt')
                 ->label('Excerpt')
-                ->required()
                 ->maxLength(500)
                 ->rows(3)
                 ->placeholder('Brief summary of the post...')
@@ -103,23 +129,9 @@ class PostsResource extends Resource
 
             RichEditor::make('content')
                 ->label('Content')
-                ->required()
                 ->rows(12)
                 ->placeholder('Write the full post content here...')
                 ->columnSpan(2),
-
-            DatePicker::make('published_at')
-                ->withTime()
-                ->label('Published At')
-                ->description('When the post was or will be published.')
-                ->visibleWhen(['status' => 'published']),
-
-            DatePicker::make('scheduled_at')
-                ->withTime()
-                ->label('Scheduled At')
-                ->disablePastDates()
-                ->description('Future date/time when the post should go live.')
-                ->visibleWhen(['status' => 'scheduled']),
         ];
     }
 
@@ -149,6 +161,12 @@ class PostsResource extends Resource
                     'archived' => ['label' => 'Archived', 'variant' => 'outline'],
                     'scheduled' => ['label' => 'Scheduled', 'variant' => 'secondary'],
                 ]),
+
+            Column::make('categories')
+                ->header('Categories')
+                ->tags()
+                ->display(['name'])
+                ->limit(3),
 
             Column::make('excerpt')
                 ->truncate(60)
@@ -212,6 +230,12 @@ class PostsResource extends Resource
                 ->map(fn($a) => [
                     'value' => (string) $a->id,
                     'label' => $a->display_name ?: $a->username,
+                ])->all(...),
+            'categories' => Category::select(['id', 'name'])
+                ->orderBy('name')
+                ->map(fn($c) => [
+                    'value' => (string) $c->id,
+                    'label' => $c->name,
                 ])->all(...),
         ];
     }

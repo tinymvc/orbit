@@ -78,6 +78,16 @@ export interface ServerFieldSchema {
 
   /** Support Multiple for Files and Comboboxes (tags) */
   multiple?: boolean;
+
+  // ─── Combobox metadata ────────────────────────────────────────────
+  /** Allow user to create new tags */
+  taggable?: boolean;
+  /** Server route for async search */
+  searchRoute?: string;
+  /** Relationship name (e.g. "categories") */
+  relationship?: string;
+  /** Max selectable items */
+  maxItems?: number;
 }
 
 export interface ServerColumnSchema {
@@ -100,6 +110,8 @@ export interface ServerColumnSchema {
   descriptionField?: string;
   /** Whether this column displays multiple values (array data) */
   multi?: boolean;
+  /** Max visible items for tags columns (remaining shown as "+N more") */
+  limit?: number;
 }
 
 export interface ServerFilter {
@@ -165,6 +177,11 @@ function serverFieldToFieldSchema(
     mediaUrl: sf.mediaUrl,
     // Support Multiple for Files and Comboboxes (tags)
     multiple: ["file", "combobox"].includes(sf.type) && sf.multiple === true,
+    // Combobox metadata
+    taggable: sf.taggable,
+    searchRoute: sf.searchRoute,
+    relationship: sf.relationship,
+    maxItems: sf.maxItems,
   };
 
   // Convert visibleWhen JSON to a function
@@ -195,7 +212,8 @@ export function buildConfigFromSchema(
     } else {
       switch (field.type) {
         case "multi-select":
-          defaultForm[field.name] = [];
+        case "combobox":
+          defaultForm[field.name] = field.multiple ? [] : "";
           break;
         case "checkbox":
         case "switch":
@@ -218,6 +236,16 @@ export function buildConfigFromSchema(
       if (field.type === "file") {
         // Keep string paths as-is for preview; null/undefined → ""
         form[field.name] = val ?? "";
+      } else if (field.type === "combobox" && field.relationship) {
+        // Extract IDs from eager-loaded relationship array
+        const related = record[field.name];
+        if (Array.isArray(related)) {
+          form[field.name] = related.map((r: Record<string, unknown>) =>
+            String(r.id ?? ""),
+          );
+        } else {
+          form[field.name] = field.multiple ? [] : "";
+        }
       } else if (field.type === "select" && val !== null && val !== undefined) {
         form[field.name] = String(val);
       } else {
@@ -232,6 +260,17 @@ export function buildConfigFromSchema(
     for (const field of fields) {
       // Preserve File objects (Inertia auto-converts to FormData)
       if (data[field.name] instanceof File) continue;
+
+      // Handle combobox fields: keep arrays as-is
+      if (field.type === "combobox") {
+        if (field.multiple) {
+          const arr = Array.isArray(data[field.name])
+            ? (data[field.name] as string[])
+            : [];
+          data[field.name] = arr;
+        }
+        continue;
+      }
 
       // Handle multi-file fields: array of File | string
       if (field.type === "file" && field.multiple) {
@@ -570,6 +609,50 @@ export function buildColumnsFromSchema(
                   ) : (
                     <span className="text-muted-foreground">—</span>
                   ),
+                );
+              }
+
+              case "tags": {
+                const items = Array.isArray(rawValue)
+                  ? (rawValue as Record<string, unknown>[])
+                  : [];
+                if (!items.length) {
+                  return (
+                    <span className="text-muted-foreground text-sm">—</span>
+                  );
+                }
+                const displayFields = col.display ?? [];
+                const limit = col.limit ?? 3;
+                const visible = items.slice(0, limit);
+                const remaining = items.length - limit;
+
+                return (
+                  <div className="flex flex-wrap gap-1">
+                    {visible.map((item, i) => {
+                      const label =
+                        displayFields
+                          .map((f) => String(item[f] ?? ""))
+                          .join(" ")
+                          .trim() ||
+                        (col.fallback
+                          ? String(item[col.fallback] ?? "")
+                          : String(item.name ?? item.id ?? i));
+                      return (
+                        <Badge
+                          key={String(item.id ?? i)}
+                          variant="outline"
+                          className="text-muted-foreground text-xs"
+                        >
+                          {label}
+                        </Badge>
+                      );
+                    })}
+                    {remaining > 0 && (
+                      <Badge variant="secondary" className="text-xs">
+                        +{remaining} more
+                      </Badge>
+                    )}
+                  </div>
                 );
               }
 

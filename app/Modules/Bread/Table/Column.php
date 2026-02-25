@@ -33,6 +33,7 @@ class Column implements Arrayable
     protected null|string $avatarFieldName = null;
     protected null|string $descriptionField = null;
     protected bool $multi = false;
+    protected null|int $limit = null;
 
     // ─── Constructor & Factory ──────────────────────────────────────────
 
@@ -116,6 +117,18 @@ class Column implements Arrayable
     public function thumbnail(): static
     {
         $this->type = 'thumbnail';
+        return $this;
+    }
+
+    /**
+     * Tags column — displays a list of related items as badges.
+     * Use with display() to set which field(s) to show, and limit() for max visible.
+     *
+     * @example Column::make('categories')->tags()->display(['name'])->limit(3)
+     */
+    public function tags(): static
+    {
+        $this->type = 'tags';
         return $this;
     }
 
@@ -240,6 +253,18 @@ class Column implements Arrayable
         return $this;
     }
 
+    /**
+     * Limit the number of visible items (for tags columns).
+     * Remaining items are shown as "+N more".
+     *
+     * @example ->limit(3)
+     */
+    public function limit(int $limit): static
+    {
+        $this->limit = $limit;
+        return $this;
+    }
+
     // ─── Getters ────────────────────────────────────────────────────────
 
     public function getKey(): string
@@ -286,6 +311,8 @@ class Column implements Arrayable
             $arr['descriptionField'] = $this->descriptionField;
         if ($this->multi)
             $arr['multi'] = true;
+        if ($this->limit !== null)
+            $arr['limit'] = $this->limit;
 
         return $arr;
     }

@@ -2,6 +2,7 @@
 
 namespace App\Modules\Bread;
 
+use App\Modules\Bread\Form\Combobox;
 use App\Modules\Bread\Form\Field;
 use App\Modules\Bread\Table\BulkAction;
 use App\Modules\Bread\Table\Column;
@@ -370,6 +371,67 @@ abstract class Resource
                 }
             }
         }
+    }
+
+    // ─── Relationship (BelongsToMany) Helpers ───────────────────────────
+
+    /**
+     * Get all Combobox fields configured with a relationship.
+     *
+     * @return Combobox[]
+     */
+    public static function getRelationshipFields(): array
+    {
+        return array_filter(
+            static::fields(),
+            fn(Field $f) => $f instanceof Combobox && $f->isRelationship()
+        );
+    }
+
+    /**
+     * Sync belongsToMany relationships from submitted form data.
+     * Call AFTER the record has been created/updated.
+     *
+     * @param Model $record       The saved model instance.
+     * @param array $data         The submitted form data.
+     */
+    public static function syncRelationships(Model $record, array $data): void
+    {
+        foreach (static::getRelationshipFields() as $field) {
+            /** @var Combobox $field */
+            $name = $field->getName();
+            $relationName = $field->getRelationName();
+
+            if (!method_exists($record, $relationName)) {
+                continue;
+            }
+
+            $ids = $data[$name] ?? [];
+            if (!is_array($ids)) {
+                $ids = array_filter([$ids]);
+            }
+
+            // Cast to integers for ID-based relations
+            $ids = array_map('intval', array_filter($ids));
+
+            $record->$relationName()->sync($ids);
+        }
+    }
+
+    /**
+     * Strip relationship field data from the main data array.
+     * These fields don't belong on the model's table — they go into pivot tables.
+     */
+    public static function extractRelationshipData(Request $request): array
+    {
+        $relationData = [];
+        foreach (static::getRelationshipFields() as $field) {
+            $name = $field->getName();
+            if ($request->has($name)) {
+                $relationData[$name] = $request[$name]; // Keep the raw input for syncing later
+            }
+        }
+        return $relationData;
     }
 
     // ─── Auto-generate validation rules from fields ─────────────────────

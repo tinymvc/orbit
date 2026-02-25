@@ -16,6 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { headline, toSlug } from "@/lib/utils";
+import { Combobox } from "@/components/combobox";
 
 // ─── Field Schema Types ─────────────────────────────────────────────────────
 
@@ -30,6 +31,7 @@ export type FieldType =
   | "richtext"
   | "select"
   | "multi-select"
+  | "combobox"
   | "checkbox"
   | "switch"
   | "date"
@@ -116,6 +118,16 @@ export interface FieldSchema {
   mediaUrl?: string;
   /** Allow multiple file uploads */
   multiple?: boolean;
+
+  // ─── Combobox fields ───────────────────────────────────────────────────
+  /** Allow user to create new tags (combobox) */
+  taggable?: boolean;
+  /** Server route for async search (combobox) */
+  searchRoute?: string;
+  /** Relationship name on the model (e.g. "categories") */
+  relationship?: string;
+  /** Max selectable items (combobox) */
+  maxItems?: number;
 }
 
 // ─── Field Renderer ─────────────────────────────────────────────────────────
@@ -315,6 +327,26 @@ export const FieldRenderer = React.memo<FieldRendererProps>(
             disabled={isDisabled}
             disablePast={field.disablePast}
             disableFuture={field.disableFuture}
+          />
+        )}
+
+        {/* Combobox */}
+        {field.type === "combobox" && (
+          <Combobox
+            options={field.options || []}
+            value={
+              field.multiple
+                ? (value as string[]) || []
+                : ((value as string) ?? "")
+            }
+            onChange={onChange}
+            multiple={field.multiple}
+            taggable={field.taggable}
+            maxItems={field.maxItems}
+            disabled={isDisabled}
+            placeholder={
+              field.placeholder || `Select ${label.toLowerCase()}...`
+            }
           />
         )}
 

@@ -70,10 +70,18 @@ class ResourceController
 
         [$data, $uploadedFiles] = $this->setupDataForStore($request);
 
+        // Extract relationship data before creating the record
+        $relationData = $this->resource::extractRelationshipData($request);
+
         $model = $this->resource::getModel();
         $record = $model::create($data);
 
         if ($record->wasCreated()) {
+            // Sync belongsToMany relationships
+            if (!empty($relationData)) {
+                $this->resource::syncRelationships($record, $relationData);
+            }
+
             $this->resource::afterCreate($record, $data);
 
             return inertia()
@@ -104,9 +112,17 @@ class ResourceController
 
         [$data] = $this->setupDataForStore($request, $record);
 
+        // Extract relationship data before updating the record
+        $relationData = $this->resource::extractRelationshipData($request);
+
         $record->fill($data);
 
         if ($record->save()) {
+            // Sync belongsToMany relationships
+            if (!empty($relationData)) {
+                $this->resource::syncRelationships($record, $relationData);
+            }
+
             $this->resource::afterUpdate($record, $data);
 
             return inertia()
@@ -135,6 +151,11 @@ class ResourceController
         // Remove file field rules if files were uploaded (already processed)
         foreach ($uploadedFiles as $fieldName => $_) {
             unset($rules[$fieldName]);
+        }
+
+        // Remove relationship field rules (handled via sync)
+        foreach ($this->resource::getRelationshipFields() as $relField) {
+            unset($rules[$relField->getName()]);
         }
 
         $input = $request->validate($rules);
