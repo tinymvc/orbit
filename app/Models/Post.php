@@ -11,6 +11,11 @@ class Post extends Model
         return $this->belongsTo(User::class);
     }
 
+    public function categories(): \Spark\Database\Relation\BelongsToMany
+    {
+        return $this->belongsToMany(Category::class);
+    }
+
     public function getCreatedAtAttribute($value): string
     {
         return carbon($value)->toFormattedDateTimeString();
