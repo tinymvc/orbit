@@ -14,6 +14,7 @@ use App\Http\Controllers\{
     UsersController
 };
 use App\Http\Resources\{
+    CategoriesResource,
     PostsResource
 };
 use App\Modules\Bread\ResourceController;
@@ -56,6 +57,7 @@ Route::group(function () {
 
     // ─── BREAD Resources  ────
     ResourceController::routes(PostsResource::class);
+    ResourceController::routes(CategoriesResource::class);
 })
     ->middleware('auth')
     ->prefix('admin');

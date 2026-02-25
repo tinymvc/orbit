@@ -2,7 +2,6 @@
 
 namespace App\Modules\Bread;
 
-use Inertia\Facades\Props;
 use Spark\Facades\Route;
 use Spark\Foundation\Application;
 use Spark\Http\Request;
@@ -55,8 +54,8 @@ class ResourceController
         $paginated = $query->paginate($request->input('per_page', 10));
 
         return inertia($this->resource::getPage(), [
-            'resource' => Props::once($this->resource::toSchema(...)),
-            'dynamicOptions' => Props::once($this->resource::dynamicProps(...)),
+            'resource' => $this->resource::toSchema(...),
+            'dynamicOptions' => $this->resource::dynamicProps(...),
             'paginated' => $paginated,
         ]);
     }

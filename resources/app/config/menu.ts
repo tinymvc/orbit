@@ -16,9 +16,18 @@ export const navMain: MenuItem[] = [
   },
   {
     title: "Posts",
-    url: "/admin/posts",
     icon: Rss,
     permission: ["posts.browse"],
+    items: [
+      {
+        title: "All Posts",
+        url: "/admin/posts",
+      },
+      {
+        title: "Categories",
+        url: "/admin/categories",
+      },
+    ],
   },
 ];
 

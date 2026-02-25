@@ -3,7 +3,7 @@ import type { LucideIcon } from "lucide-react";
 // App Context Types
 export interface MenuItem {
   title: string;
-  url: string;
+  url?: string;
   icon?: LucideIcon | null;
   permission?: string[];
   items?: SubMenuItem[];

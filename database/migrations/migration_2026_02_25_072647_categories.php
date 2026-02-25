@@ -12,6 +12,8 @@ return new class {
             $table->string('slug', 120)->unique();
             $table->string('description', 255)->nullable();
             $table->timestamps();
+            $table->index('name');
+            $table->index(['name', 'description']);
         });
     }
 
