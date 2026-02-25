@@ -27,6 +27,7 @@ declare global {
   interface Role {
     id: number;
     name: string;
+    slug: string;
     privileges: string[];
     created_at: string;
     updated_at: string;

@@ -10,7 +10,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { headline } from "@/lib/utils";
+import { Switch } from "@/components/ui/switch";
+import { Separator } from "@/components/ui/separator";
+import { headline, toSlug } from "@/lib/utils";
 import type { Row } from "@tanstack/react-table";
 import { usePage } from "@inertiajs/react";
 
@@ -18,6 +20,7 @@ import { usePage } from "@inertiajs/react";
 
 interface RoleFormData {
   name: string;
+  slug: string;
   privileges: string[];
   [key: string]: unknown;
 }
@@ -50,6 +53,142 @@ interface ColumnsCallbackParams {
   can: { edit: boolean; delete: boolean; create: boolean };
 }
 
+// ─── Privilege Group Card ───────────────────────────────────────────────────
+
+const FULL_ACCESS_KEY = "all.access";
+
+interface GroupCardProps {
+  groupKey: string;
+  permissions: Record<string, string>;
+  selected: string[];
+  disabled: boolean;
+  onTogglePermission: (key: string) => void;
+  onToggleGroup: (groupKey: string) => void;
+}
+
+const GroupCard = React.memo<GroupCardProps>(
+  ({
+    groupKey,
+    permissions,
+    selected,
+    disabled,
+    onTogglePermission,
+    onToggleGroup,
+  }) => {
+    const [open, setOpen] = React.useState(false);
+    const keys = Object.keys(permissions);
+    const count = keys.filter((k) => selected.includes(k)).length;
+    const total = keys.length;
+    const allSelected = count === total;
+    const someSelected = count > 0 && !allSelected;
+    const progress = total > 0 ? (count / total) * 100 : 0;
+
+    return (
+      <div
+        className={`rounded-lg border transition-colors ${
+          disabled
+            ? "opacity-40 pointer-events-none"
+            : allSelected
+              ? "border-primary/40 bg-primary/3"
+              : "bg-card"
+        }`}
+      >
+        {/* Group header */}
+        <button
+          type="button"
+          className="flex w-full items-center gap-3 p-3 text-left"
+          onClick={() => !disabled && setOpen((o) => !o)}
+          disabled={disabled}
+        >
+          <Checkbox
+            id={`group-${groupKey}`}
+            checked={allSelected}
+            onCheckedChange={() => {
+              onToggleGroup(groupKey);
+            }}
+            onClick={(e) => e.stopPropagation()}
+            disabled={disabled}
+            className={
+              someSelected
+                ? "data-[state=unchecked]:bg-primary/20 data-[state=unchecked]:border-primary"
+                : ""
+            }
+          />
+
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-semibold">
+                {headline(groupKey)}
+              </span>
+              <Badge
+                variant={allSelected ? "default" : "secondary"}
+                className="text-[0.65rem] px-1.5 py-0 h-4 font-medium"
+              >
+                {count}/{total}
+              </Badge>
+            </div>
+            {/* Mini progress bar */}
+            <div className="mt-1.5 h-0.5 w-full rounded-full bg-muted overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all duration-300 ${
+                  allSelected ? "bg-primary" : "bg-primary/60"
+                }`}
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+          </div>
+
+          <svg
+            className={`w-4 h-4 shrink-0 text-muted-foreground transition-transform duration-200 ${
+              open ? "rotate-180" : ""
+            }`}
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M19 9l-7 7-7-7"
+            />
+          </svg>
+        </button>
+
+        {/* Expanded permissions */}
+        {open && (
+          <div className="px-4 pb-3 pt-0">
+            <Separator className="mb-3" />
+            <div className="grid gap-2 pl-2">
+              {Object.entries(permissions).map(([permKey, permLabel]) => {
+                const checked = selected.includes(permKey);
+                return (
+                  <label
+                    key={permKey}
+                    className={`flex items-center gap-2.5 rounded-md px-2 py-1.5 transition-colors cursor-pointer hover:bg-muted/60 ${
+                      checked ? "bg-primary/5" : ""
+                    }`}
+                  >
+                    <Checkbox
+                      id={permKey}
+                      checked={checked}
+                      onCheckedChange={() => onTogglePermission(permKey)}
+                      disabled={disabled}
+                    />
+                    <span className="text-[0.81rem] font-normal select-none">
+                      {permLabel}
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  },
+);
+
 // ─── Privileges Box Component ──────────────────────────────────────────────
 
 const PrivilegesBox = React.memo<PrivilegesBoxProps>(
@@ -57,105 +196,172 @@ const PrivilegesBox = React.memo<PrivilegesBoxProps>(
     const { props } = usePage<{
       privileges: Record<string, Record<string, string>>;
     }>();
-    const privileges: Record<
-      string,
-      Record<string, string>
-    > = props.privileges || {};
+    const allPrivileges = props.privileges || {};
+    const currentPrivileges = formData.privileges || [];
 
-    const handlePrivilegeToggle = (privilegeKey: string) => {
-      const currentPrivileges = formData.privileges || [];
-      const newPrivileges = currentPrivileges.includes(privilegeKey)
-        ? currentPrivileges.filter((p: string) => p !== privilegeKey)
-        : [...currentPrivileges, privilegeKey];
-      handleChange("privileges", newPrivileges);
-    };
+    const hasFullAccess = currentPrivileges.includes(FULL_ACCESS_KEY);
 
-    const handleGroupToggle = (groupKey: string) => {
-      const groupPermissions = Object.keys(privileges[groupKey] || {});
-      const currentPrivileges = formData.privileges || [];
-      const allSelected = groupPermissions.every((p) =>
-        currentPrivileges.includes(p),
-      );
+    // Separate `all` group from the rest
+    const groups = React.useMemo(() => {
+      return Object.entries(allPrivileges).filter(([k]) => k !== "all");
+    }, [allPrivileges]);
 
-      const newPrivileges = allSelected
-        ? currentPrivileges.filter((p: string) => !groupPermissions.includes(p))
-        : [...new Set([...currentPrivileges, ...groupPermissions])];
-      handleChange("privileges", newPrivileges);
-    };
+    // Total granular stats
+    const totalPerms = groups.reduce(
+      (sum, [, perms]) => sum + Object.keys(perms).length,
+      0,
+    );
+    const selectedPerms = groups.reduce(
+      (sum, [, perms]) =>
+        sum +
+        Object.keys(perms).filter((k) => currentPrivileges.includes(k)).length,
+      0,
+    );
+
+    // ── Handlers ──────────────────────────────────────────────────────
+
+    const handleFullAccessToggle = React.useCallback(
+      (checked: boolean) => {
+        if (checked) {
+          handleChange("privileges", [FULL_ACCESS_KEY]);
+        } else {
+          handleChange("privileges", []);
+        }
+      },
+      [handleChange],
+    );
+
+    const handlePrivilegeToggle = React.useCallback(
+      (key: string) => {
+        const next = currentPrivileges.includes(key)
+          ? currentPrivileges.filter((p: string) => p !== key)
+          : [...currentPrivileges, key];
+        handleChange("privileges", next);
+      },
+      [currentPrivileges, handleChange],
+    );
+
+    const handleGroupToggle = React.useCallback(
+      (groupKey: string) => {
+        const groupPerms = Object.keys(allPrivileges[groupKey] || {});
+        const allSelected = groupPerms.every((p) =>
+          currentPrivileges.includes(p),
+        );
+        const next = allSelected
+          ? currentPrivileges.filter((p: string) => !groupPerms.includes(p))
+          : [...new Set([...currentPrivileges, ...groupPerms])];
+        handleChange("privileges", next);
+      },
+      [currentPrivileges, allPrivileges, handleChange],
+    );
+
+    const handleSelectAll = React.useCallback(() => {
+      const allKeys = groups.flatMap(([, perms]) => Object.keys(perms));
+      handleChange("privileges", allKeys);
+    }, [groups, handleChange]);
+
+    const handleDeselectAll = React.useCallback(() => {
+      handleChange("privileges", []);
+    }, [handleChange]);
 
     return (
       <div className="space-y-4">
-        <Label className="block mb-2">Privileges</Label>
+        <Label className="block">Privileges</Label>
         {formErrors.privileges && (
           <p className="text-xs text-destructive">{formErrors.privileges}</p>
         )}
-        <div className="space-y-3">
-          {Object.entries(privileges).map(([groupKey, permissions]) => {
-            const groupPermissions = Object.keys(permissions);
-            const currentPrivileges = formData.privileges || [];
-            const allSelected = groupPermissions.every((p) =>
-              currentPrivileges.includes(p),
-            );
-            const someSelected =
-              groupPermissions.some((p) => currentPrivileges.includes(p)) &&
-              !allSelected;
 
-            return (
-              <div
-                key={groupKey}
-                className="rounded-lg border bg-card text-card-foreground shadow-xs"
+        {/* ── Full Access toggle ───────────────────────────────────────── */}
+        <div
+          className={`rounded-lg border-2 p-4 transition-all ${
+            hasFullAccess
+              ? "border-primary bg-primary/5 shadow-sm"
+              : "border-muted hover:border-muted-foreground/30"
+          }`}
+        >
+          <label className="flex items-center gap-3 cursor-pointer">
+            <div
+              className={`flex items-center justify-center w-9 h-9 rounded-lg transition-colors ${
+                hasFullAccess
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted text-muted-foreground"
+              }`}
+            >
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
               >
-                <div className="p-3 pb-3">
-                  <div className="flex items-center gap-2">
-                    <Checkbox
-                      id={`group-${groupKey}`}
-                      checked={allSelected}
-                      onCheckedChange={() => handleGroupToggle(groupKey)}
-                      className={
-                        someSelected
-                          ? "data-[state=checked]:bg-muted-foreground"
-                          : ""
-                      }
-                    />
-                    <Label
-                      htmlFor={`group-${groupKey}`}
-                      className="text-sm font-semibold cursor-pointer"
-                    >
-                      {headline(groupKey)}
-                    </Label>
-                  </div>
-                </div>
-                <div className="px-4 pb-4 pt-0">
-                  <div className="space-y-3 pl-5">
-                    {Object.entries(permissions).map(
-                      ([permissionKey, permissionLabel]) => (
-                        <div
-                          key={permissionKey}
-                          className="flex items-center gap-2"
-                        >
-                          <Checkbox
-                            id={permissionKey}
-                            checked={(formData.privileges || []).includes(
-                              permissionKey,
-                            )}
-                            onCheckedChange={() =>
-                              handlePrivilegeToggle(permissionKey)
-                            }
-                          />
-                          <Label
-                            htmlFor={permissionKey}
-                            className="text-[0.81rem] font-normal cursor-pointer"
-                          >
-                            {permissionLabel}
-                          </Label>
-                        </div>
-                      ),
-                    )}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={1.5}
+                  d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z"
+                />
+              </svg>
+            </div>
+            <div className="flex-1">
+              <div className="text-sm font-semibold">Full Access</div>
+              <p className="text-xs text-muted-foreground">
+                Grants unrestricted access to all areas. No other permissions
+                needed.
+              </p>
+            </div>
+            <Switch
+              checked={hasFullAccess}
+              onCheckedChange={handleFullAccessToggle}
+            />
+          </label>
+        </div>
+
+        {/* ── Granular permissions ──────────────────────────────────────── */}
+        <div
+          className={`space-y-3 transition-all ${
+            hasFullAccess ? "opacity-40 pointer-events-none select-none" : ""
+          }`}
+        >
+          {/* Quick actions bar */}
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-muted-foreground">
+              {selectedPerms} of {totalPerms} permissions selected
+            </span>
+            <div className="flex items-center gap-1">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-7 text-xs px-2"
+                onClick={handleSelectAll}
+                disabled={hasFullAccess || selectedPerms === totalPerms}
+              >
+                Select all
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-7 text-xs px-2"
+                onClick={handleDeselectAll}
+                disabled={hasFullAccess || selectedPerms === 0}
+              >
+                Deselect all
+              </Button>
+            </div>
+          </div>
+
+          {/* Group cards */}
+          {groups.map(([groupKey, permissions]) => (
+            <GroupCard
+              key={groupKey}
+              groupKey={groupKey}
+              permissions={permissions}
+              selected={currentPrivileges}
+              disabled={hasFullAccess}
+              onTogglePermission={handlePrivilegeToggle}
+              onToggleGroup={handleGroupToggle}
+            />
+          ))}
         </div>
       </div>
     );
@@ -203,6 +409,27 @@ const FormFields = React.memo<FormFieldsProps>(
           />
           {formErrors.name && (
             <p className="text-xs text-destructive">{formErrors.name}</p>
+          )}
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="slug" className="block mb-2">
+            Slug <sup className="text-destructive">*</sup>
+          </Label>
+          <div>
+            <Input
+              id="slug"
+              value={fd.slug}
+              onChange={(e) => handleChange("slug", e.target.value)}
+              placeholder="Enter slug"
+              maxLength={100}
+              required
+            />
+            <span className="text-xs text-muted-foreground">
+              Auto generated from name if left empty. Must be unique.
+            </span>
+          </div>
+          {formErrors.slug && (
+            <p className="text-xs text-destructive">{formErrors.slug}</p>
           )}
         </div>
         <PrivilegesBox
@@ -262,6 +489,13 @@ const columnsCallback = ({
     ),
   },
   {
+    accessorKey: "slug",
+    header: "Slug",
+    cell: ({ row }: { row: Row<Role> }) => (
+      <Badge variant="secondary">{row.original.slug}</Badge>
+    ),
+  },
+  {
     accessorKey: "privileges",
     header: "Privileges",
     cell: ({ row }: { row: Row<Role> }) => (
@@ -312,6 +546,7 @@ const config: BreadConfig = {
   },
   recordCallback: (role) => ({
     name: role.name || "",
+    slug: role.slug || toSlug((role.name as string) || ""),
     privileges: role.privileges || [],
   }),
   submitCallback: (formData) => formData,

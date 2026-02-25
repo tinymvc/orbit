@@ -87,15 +87,11 @@ const AppContextProvider = ({ children }: { children: ReactNode }) => {
     isAuthenticated() &&
     props.auth.user &&
     props.auth.user?.privileges &&
-    props.auth.user.privileges.includes(permission);
+    (props.auth.user.privileges.includes("all.access") ||
+      props.auth.user.privileges.includes(permission));
 
   const canAny = (permissions: string[]): boolean =>
-    permissions.some(
-      (permission) =>
-        isAuthenticated() &&
-        props.auth?.user?.privileges &&
-        props.auth.user.privileges.includes(permission),
-    );
+    permissions.some((permission) => can(permission) === true);
 
   const cannot = (permission: string): boolean => !can(permission);
 

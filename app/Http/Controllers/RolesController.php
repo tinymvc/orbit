@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\Role;
-use App\Security\Privileges;
 use Inertia\Facades\Props;
 use Spark\Http\Request;
 
@@ -22,7 +21,7 @@ class RolesController extends Controller
 
         return inertia('admin/roles', [
             'roles' => $roles,
-            'privileges' => Props::once(Privileges::list()->toArray(...))
+            'privileges' => Props::once(privileges_list(...))
         ]);
     }
 
@@ -32,7 +31,8 @@ class RolesController extends Controller
 
         $role = Role::create(
             $request->validate([
-                'name' => 'required|max:100|unique:roles,name',
+                'name' => 'required|max:100',
+                'slug' => 'required|max:150|unique:roles,slug',
                 'privileges' => 'required|array|min:1|max:200',
             ])
         );
@@ -55,7 +55,8 @@ class RolesController extends Controller
         $role = Role::findOrFail($id);
         $role->fill(
             $request->validate([
-                'name' => "required|max:100|unique:roles,name,$id",
+                'name' => "required|max:100",
+                'slug' => "required|max:150|unique:roles,slug,$id",
                 'privileges' => 'required|array|min:1|max:200',
             ])
         );

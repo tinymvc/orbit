@@ -34,3 +34,25 @@ if (!function_exists('get_gravatar_url')) {
         return $url;
     }
 }
+
+if (!function_exists('privileges_list')) {
+    /**
+     * Get the list of all available privileges from config/privileges.php, prefixed with their group keys.
+     *
+     * @return \Spark\Support\Collection
+     */
+    function privileges_list()
+    {
+        return collect(
+            [
+                'all' => ['access' => 'Full Access to All Areas'],
+                ...(require root_dir('config/privileges.php'))
+            ],
+        )
+            ->map(
+                fn($items, $key1) => collect($items)
+                    ->mapWithKeys(fn($item, $key2) => ["$key1.$key2" => $item])
+                    ->all()
+            );
+    }
+}

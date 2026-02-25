@@ -8,9 +8,11 @@ return new class {
     {
         Schema::create('roles', function (Blueprint $table) {
             $table->id();
-            $table->string('name')->unique();
+            $table->string('name', 100)->required();
+            $table->string('slug', 150)->required()->unique();
             $table->json('privileges');
             $table->timestamps();
+            $table->index('name');
         });
     }
 

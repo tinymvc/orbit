@@ -2,14 +2,14 @@
 
 use App\Models\Role;
 use App\Models\User;
-use App\Security\Privileges;
 
 return new class {
     public function up(): void
     {
         $role = Role::create([
             'name' => 'Admin',
-            'privileges' => Privileges::list(false)->dot()->keys(),
+            'slug' => 'admin',
+            'privileges' => ['all.access'],
         ]);
 
         $user = User::firstOrCreate(
