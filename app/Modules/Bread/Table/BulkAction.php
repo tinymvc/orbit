@@ -13,23 +13,20 @@ use Spark\Contracts\Support\Arrayable;
  */
 class BulkAction implements Arrayable
 {
+    protected null|string $label = null;
+    protected string $variant = 'default';
+    protected null|string $statusColumn = null;
+    protected mixed $callback = null;
+
     // ─── Constructor & Factory ──────────────────────────────────────────
 
-    public function __construct(
-        protected string $action,
-        protected null|string $label = null,
-        protected string $variant = 'default',
-        protected null|string $statusColumn = null,
-    ) {
+    public function __construct(protected string $action)
+    {
     }
 
-    public static function make(
-        string $action,
-        null|string $label = null,
-        string $variant = 'default',
-        null|string $statusColumn = null,
-    ): static {
-        return new static($action, $label, $variant, $statusColumn);
+    public static function make(string $action): static
+    {
+        return new static($action);
     }
 
     // ─── Setters ────────────────────────────────────────────────────────
@@ -46,10 +43,18 @@ class BulkAction implements Arrayable
         return $this;
     }
 
-    /**
-     * The database column to update when this bulk action is triggered.
-     * Defaults to 'status' if not set.
-     */
+    public function variant(string $variant): static
+    {
+        $this->variant = $variant;
+        return $this;
+    }
+
+    public function callback(null|array|string|callable $callback): static
+    {
+        $this->callback = $callback;
+        return $this;
+    }
+
     public function statusColumn(string $column): static
     {
         $this->statusColumn = $column;
@@ -63,6 +68,16 @@ class BulkAction implements Arrayable
         return $this->action;
     }
 
+    public function getCallback(): null|array|string|callable
+    {
+        return $this->callback;
+    }
+
+    public function getStatusColumn(): null|string
+    {
+        return $this->statusColumn;
+    }
+
     // ─── Serialisation ──────────────────────────────────────────────────
 
     public function toArray(): array
@@ -72,10 +87,6 @@ class BulkAction implements Arrayable
             'label' => $this->label ?? str($this->action)->headline()->toString(),
             'variant' => $this->variant,
         ];
-
-        if ($this->statusColumn !== null) {
-            $arr['statusColumn'] = $this->statusColumn;
-        }
 
         return $arr;
     }

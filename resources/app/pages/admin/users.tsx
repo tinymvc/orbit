@@ -20,7 +20,6 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { headline } from "@/lib/utils";
-import { useApp } from "@/contexts/app";
 
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 
@@ -533,29 +532,11 @@ export default function UsersPage({
   users: PaginatedData<User>;
   roles: Role[];
 }) {
-  const { fireAlert } = useApp();
-
   const bulkAction = (action: string, selectedIds: number[]) => {
-    if (action === "delete") {
-      fireAlert({
-        title: "Delete Users",
-        description:
-          "Are you sure you want to delete the selected users? This action cannot be undone.",
-        confirmText: "Yes, Delete",
-        cancelText: "Cancel",
-        onConfirm: () => {
-          router.post("/admin/users/bulk-action", {
-            action,
-            ids: selectedIds,
-          });
-        },
-      });
-    } else {
-      router.post("/admin/users/bulk-action", {
-        action,
-        ids: selectedIds,
-      });
-    }
+    router.post("/admin/users/bulk-action", {
+      action,
+      ids: selectedIds,
+    });
   };
 
   return (

@@ -35,6 +35,11 @@ class User extends Model
         return $this->hasMany(Post::class);
     }
 
+    public function scopeActive($query)
+    {
+        return $query->where('status', 'active');
+    }
+
     public function getCreatedAtAttribute($value): string
     {
         return carbon($value)->toFormattedDateString();

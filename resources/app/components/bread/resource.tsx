@@ -3,7 +3,7 @@ import type { Row, ColumnDef } from "@tanstack/react-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { headline } from "@/lib/utils";
+import { headline, mediaUrl } from "@/lib/utils";
 import { BreadActionsCell, type BreadConfig } from "@/components/bread";
 import { type FieldSchema, AutoFormFields, resolveAccessor } from "./fields";
 import { router } from "@inertiajs/react";
@@ -324,7 +324,6 @@ export function buildColumnsFromSchema(
         return {
           accessorKey: col.key,
           header: headerText,
-          enableHiding: col.visible !== false,
           cell: ({ row }: { row: Row<Record<string, unknown>> }) => {
             const record = row.original;
             const rawValue = col.accessor
@@ -367,23 +366,25 @@ export function buildColumnsFromSchema(
               }
 
               case "date":
-                return (
+                return wrapClickToEdit(
                   <span className="text-sm text-muted-foreground">
                     {rawValue ? String(rawValue) : "—"}
-                  </span>
+                  </span>,
                 );
 
               case "image":
-                return rawValue ? (
-                  <img
-                    src={String(rawValue)}
-                    alt=""
-                    className={
-                      col.imageSize ?? "w-10 h-10 rounded-md object-cover"
-                    }
-                  />
-                ) : (
-                  <span className="text-muted-foreground">—</span>
+                return wrapClickToEdit(
+                  rawValue ? (
+                    <img
+                      src={mediaUrl(String(rawValue))}
+                      alt=""
+                      className={
+                        col.imageSize ?? "w-10 h-10 rounded-md object-cover"
+                      }
+                    />
+                  ) : (
+                    <span className="text-muted-foreground">—</span>
+                  ),
                 );
 
               case "boolean":
@@ -410,7 +411,8 @@ export function buildColumnsFromSchema(
                     .join(" ")
                     .trim() ||
                   (col.fallback ? String(related[col.fallback] ?? "") : "—");
-                return <span className="text-sm">{name}</span>;
+
+                return wrapClickToEdit(<span className="text-sm">{name}</span>);
               }
 
               case "avatar": {
@@ -443,7 +445,7 @@ export function buildColumnsFromSchema(
                   .slice(0, 2)
                   .toUpperCase();
 
-                return (
+                return wrapClickToEdit(
                   <div className="flex items-center gap-2.5">
                     <Avatar className="size-8">
                       {avatarUrl ? (
@@ -463,7 +465,7 @@ export function buildColumnsFromSchema(
                         </span>
                       )}
                     </div>
-                  </div>
+                  </div>,
                 );
               }
 
@@ -503,17 +505,19 @@ export function buildColumnsFromSchema(
               }
 
               case "thumbnail": {
-                return rawValue ? (
-                  <img
-                    src={String(rawValue)}
-                    alt=""
-                    className={
-                      col.imageSize ??
-                      "w-16 h-12 rounded-md object-cover border"
-                    }
-                  />
-                ) : (
-                  <span className="text-muted-foreground">—</span>
+                return wrapClickToEdit(
+                  rawValue ? (
+                    <img
+                      src={mediaUrl(String(rawValue))}
+                      alt=""
+                      className={
+                        col.imageSize ??
+                        "w-16 h-12 rounded-md object-cover border"
+                      }
+                    />
+                  ) : (
+                    <span className="text-muted-foreground">—</span>
+                  ),
                 );
               }
 

@@ -14,25 +14,15 @@ use function count;
 
 /**
  * Abstract base for all BREAD resources.
- *
- * Inspired by Filament PHP — define your model, fields, columns, filters,
- * permissions, and bulk-actions in one class using fluent builder objects.
- * The generic ResourceController handles all CRUD automatically and sends
- * the schema to the frontend where `bread.tsx` renders it.
- *
- * Usage:
- *   class PostsResource extends Resource {
- *       protected static string $model = \App\Models\Post::class;
- *       public static function fields(): array {
- *           return [
- *               TextInput::make('title')->required()->maxLength(255),
- *               Select::make('status')->options([...])->in('draft,published'),
- *               FileUpload::make('thumbnail')->uploadTo('posts'),
- *               RichEditor::make('content')->required(),
- *           ];
- *       }
- *       ...
- *   }
+ * 
+ * This class defines the core structure and functionality for BREAD resources.
+ * Each resource represents a CRUD interface for a specific Eloquent model.
+ * 
+ * To create a new resource, simply extend this class and implement the abstract methods.
+ * The resource class handles schema definition, permissions, file uploads, and more.
+ * The corresponding controller and frontend page are generated automatically.
+ * 
+ * @author Shahin Moyshan <shahin.moyshan2@gmail.com>
  */
 abstract class Resource
 {
@@ -123,13 +113,13 @@ abstract class Resource
         return [];
     }
 
-    // ─── Extra data & hooks ─────────────────────────────────────────────
+    // ─── Dynamic data & hooks ─────────────────────────────────────────────
 
     /**
-     * Extra data (props) to pass alongside the resource schema.
+     * Dynamic data (props) to pass alongside the resource schema.
      * e.g. author list, categories, etc.
      */
-    public static function extraProps(): array
+    public static function dynamicProps(): array
     {
         return [];
     }

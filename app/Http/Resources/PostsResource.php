@@ -15,7 +15,6 @@ use App\Modules\Bread\Resource;
 use App\Modules\Bread\Table\BulkAction;
 use App\Modules\Bread\Table\Column;
 use App\Modules\Bread\Table\Filter;
-use Inertia\Facades\Props;
 
 /**
  * Posts BREAD Resource
@@ -33,7 +32,7 @@ class PostsResource extends Resource
     protected static null|string $title = 'Posts';
     protected static null|string $description = 'Manage blog posts, drafts, and scheduled publications.';
 
-    protected static array $with = ['user:id,first_name,last_name,username'];
+    protected static array $with = ['user:id,first_name,last_name,username,email'];
     protected static array $searchable = ['title', 'slug', 'excerpt'];
 
     // ─── Permissions ────────────────────────────────────────────────────
@@ -71,7 +70,7 @@ class PostsResource extends Resource
             Select::make('user_id')
                 ->label('Author')
                 ->required()
-                ->options('dynamic:authors'),
+                ->dynamicOptions('authors'),
 
             Select::make('status')
                 ->label('Status')
@@ -89,7 +88,7 @@ class PostsResource extends Resource
                 ->label('Thumbnail')
                 ->uploadTo('posts')
                 ->acceptedTypes(['jpg', 'jpeg', 'png', 'webp', 'gif'])
-                ->maxFileSize(4096)
+                ->maxFileSize(4096) // 4MB
                 ->compress(80)
                 ->description('Upload a thumbnail image for the post.')
                 ->columnSpan(2),
@@ -133,11 +132,14 @@ class PostsResource extends Resource
                 ->clickToEdit()
                 ->truncate(45),
 
+            Column::make('thumbnail')
+                ->header('Thumbnail')
+                ->thumbnail(),
+
             Column::make('user')
                 ->header('Author')
-                ->belongsTo()
-                ->display(['first_name', 'last_name'])
-                ->fallback('username'),
+                ->avatar('avatar_url')
+                ->display(['display_name']),
 
             Column::make('status')
                 ->badge()
@@ -163,6 +165,7 @@ class PostsResource extends Resource
 
             Column::make('created_at')
                 ->header('Created')
+                ->hidden()
                 ->date(),
         ];
     }
@@ -199,20 +202,17 @@ class PostsResource extends Resource
         ];
     }
 
-    // ─── Extra Props (sent to frontend) ─────────────────────────────────
+    // ─── Dynamic Props (sent to frontend) ─────────────────────────────────
 
-    public static function extraProps(): array
+    public static function dynamicProps(): array
     {
         return [
-            'dynamicOptions' => [
-                'authors' => Props::once(
-                    User::select(['id', 'first_name', 'last_name', 'username'])
-                        ->map(fn($a) => [
-                            'value' => (string) $a->id,
-                            'label' => $a->display_name ?: $a->username,
-                        ])->all(...)
-                ),
-            ],
+            'authors' => User::select(['id', 'first_name', 'last_name', 'username'])
+                ->active()
+                ->map(fn($a) => [
+                    'value' => (string) $a->id,
+                    'label' => $a->display_name ?: $a->username,
+                ])->all(...),
         ];
     }
 

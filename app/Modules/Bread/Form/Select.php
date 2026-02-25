@@ -45,6 +45,12 @@ class Select extends Field
         return $this;
     }
 
+    public function dynamicOptions(string $key): static
+    {
+        $this->options = "dynamic:$key";
+        return $this;
+    }
+
     /**
      * Comma-separated allowed values for validation.
      */

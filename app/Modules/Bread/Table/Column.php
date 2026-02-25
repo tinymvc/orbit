@@ -87,11 +87,16 @@ class Column implements Arrayable
      * Avatar column — circular avatar image + name text.
      * Use display() for name fields and avatarField() for the image field.
      *
+     * @param null|string $field Optional field name for the avatar image URL (if not using avatarField()).
+     * 
      * @example Column::make('user')->avatar()->avatarField('avatar')->display(['first_name', 'last_name'])
      */
-    public function avatar(): static
+    public function avatar(null|string $field = null): static
     {
         $this->type = 'avatar';
+        if ($field !== null) {
+            $this->avatarField($field);
+        }
         return $this;
     }
 

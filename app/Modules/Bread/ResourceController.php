@@ -4,6 +4,7 @@ namespace App\Modules\Bread;
 
 use Inertia\Facades\Props;
 use Spark\Facades\Route;
+use Spark\Foundation\Application;
 use Spark\Http\Request;
 use Spark\Routing\RouteGroup;
 use function is_array;
@@ -18,6 +19,8 @@ use function is_array;
  *
  * Usage in routes:
  *   ResourceController::routes(PostsResource::class);
+ * 
+ * @author Shahin Moyshan <shahin.moyshan2@gmail.com>
  */
 class ResourceController
 {
@@ -53,8 +56,8 @@ class ResourceController
 
         return inertia($this->resource::getPage(), [
             'resource' => Props::once($this->resource::toSchema(...)),
+            'dynamicOptions' => Props::once($this->resource::dynamicProps(...)),
             'paginated' => $paginated,
-            ...$this->resource::extraProps(),
         ]);
     }
 
@@ -219,9 +222,8 @@ class ResourceController
         $bulkActions = $this->resource::bulkActions();
         $matchedAction = null;
         foreach ($bulkActions as $ba) {
-            $baArr = method_exists($ba, 'toArray') ? $ba->toArray() : $ba;
-            if (($baArr['action'] ?? '') === $action) {
-                $matchedAction = $baArr;
+            if ($ba->getAction() === $action) {
+                $matchedAction = $ba;
                 break;
             }
         }
@@ -230,9 +232,15 @@ class ResourceController
             authorize('permission', $this->resource::getEditPerm());
         }
 
-        $model = $this->resource::getModel();
-        $column = $matchedAction['statusColumn'] ?? 'status';
-        $model::whereIn('id', $ids)->update([$column => $action]);
+        $callback = $matchedAction->getCallback();
+        if ($callback) {
+            Application::$app->call($callback, ['ids' => $ids]);
+        } else {
+            $model = $this->resource::getModel();
+            $model::whereIn('id', $ids)->update([
+                $matchedAction->getStatusColumn() ?: 'status' => $action
+            ]);
+        }
 
         return inertia()
             ->back()

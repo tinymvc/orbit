@@ -13,7 +13,7 @@ class Post extends Model
 
     public function getCreatedAtAttribute($value): string
     {
-        return carbon($value)->toFormattedDateString();
+        return carbon($value)->toFormattedDateTimeString();
     }
 
     public function getPublishedAtAttribute($value): null|string

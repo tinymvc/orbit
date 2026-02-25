@@ -18,6 +18,13 @@ return new class {
             $table->timestamp('published_at')->nullable();
             $table->timestamp('scheduled_at')->nullable();
             $table->timestamps();
+            $table->index('title');
+            $table->index('excerpt');
+            $table->index(['title', 'excerpt']);
+            $table->index('status');
+            $table->index('published_at');
+            $table->index(['status', 'published_at']);
+            $table->index(['status', 'scheduled_at']);
         });
     }
 

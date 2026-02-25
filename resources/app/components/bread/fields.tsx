@@ -6,7 +6,7 @@ import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DatePicker } from "@/components/date-picker";
 import { DateTimePicker } from "@/components/date-time-picker";
-import { RichTextEditor } from "@/components/bread/rich-text-editor";
+import { RichTextEditor } from "@/components/rich-text-editor";
 import {
   Select,
   SelectContent,
@@ -14,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { headline } from "@/lib/utils";
+import { headline, toSlug } from "@/lib/utils";
 
 // ─── Field Schema Types ─────────────────────────────────────────────────────
 
@@ -113,18 +113,6 @@ export interface FieldSchema {
   maxFileSize?: number;
   /** Media URL prefix for displaying existing files (e.g. "/uploads/") */
   mediaUrl?: string;
-}
-
-// ─── Slug Helper ────────────────────────────────────────────────────────────
-
-function toSlug(text: string): string {
-  return text
-    .toLowerCase()
-    .trim()
-    .replace(/[^\w\s-]/g, "")
-    .replace(/[\s_]+/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-+|-+$/g, "");
 }
 
 // ─── Field Renderer ─────────────────────────────────────────────────────────

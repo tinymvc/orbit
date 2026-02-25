@@ -481,6 +481,8 @@ export default function Bread<
 
   const { can, cannot } = useApp();
 
+  const { fireAlert } = useApp();
+
   // Debounce search query
   const [debouncedSearchQuery] = useDebounce(searchQuery, 500);
 
@@ -723,11 +725,26 @@ export default function Bread<
     async (action: NonNullable<typeof config.bulkActions>[0]) => {
       if (selectedIds.length === 0) return;
 
-      try {
-        await action.callback(selectedIds);
-        setRowSelection({});
-      } catch (error) {
-        console.error("Bulk action error:", error);
+      const call = async () => {
+        try {
+          await action.callback(selectedIds);
+          setRowSelection({});
+        } catch (error) {
+          console.error("Bulk action error:", error);
+        }
+      };
+
+      if (action.action === "delete") {
+        const name = config.title || config.name;
+        fireAlert({
+          title: `Delete ${name}`,
+          description: `Are you sure you want to delete the selected ${name.toLowerCase()}? This action cannot be undone.`,
+          confirmText: "Yes, Delete",
+          cancelText: "Cancel",
+          onConfirm: () => call(),
+        });
+      } else {
+        await call();
       }
     },
     [selectedIds],
