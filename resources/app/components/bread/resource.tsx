@@ -75,6 +75,9 @@ export interface ServerFieldSchema {
   maxFileSize?: number;
   /** Media URL prefix for displaying existing files */
   mediaUrl?: string;
+
+  /** Support Multiple for Files and Comboboxes (tags) */
+  multiple?: boolean;
 }
 
 export interface ServerColumnSchema {
@@ -95,6 +98,8 @@ export interface ServerColumnSchema {
   avatarField?: string;
   /** For avatar columns — optional subtitle field */
   descriptionField?: string;
+  /** Whether this column displays multiple values (array data) */
+  multi?: boolean;
 }
 
 export interface ServerFilter {
@@ -158,6 +163,8 @@ function serverFieldToFieldSchema(
     acceptedTypes: sf.acceptedTypes,
     maxFileSize: sf.maxFileSize,
     mediaUrl: sf.mediaUrl,
+    // Support Multiple for Files and Comboboxes (tags)
+    multiple: ["file", "combobox"].includes(sf.type) && sf.multiple === true,
   };
 
   // Convert visibleWhen JSON to a function
@@ -226,6 +233,18 @@ export function buildConfigFromSchema(
       // Preserve File objects (Inertia auto-converts to FormData)
       if (data[field.name] instanceof File) continue;
 
+      // Handle multi-file fields: array of File | string
+      if (field.type === "file" && field.multiple) {
+        const arr = Array.isArray(data[field.name])
+          ? (data[field.name] as unknown[])
+          : [];
+        // If array has any File objects, keep them for FormData serialisation.
+        // Existing string paths are also kept so backend knows which to retain.
+        // Empty array → user removed all files.
+        data[field.name] = arr;
+        continue;
+      }
+
       if (field.type === "password" && !data[field.name]) {
         delete data[field.name];
       }
@@ -236,7 +255,7 @@ export function buildConfigFromSchema(
       ) {
         data[field.name] = Number(data[field.name]);
       }
-      // For file fields:
+      // For single file fields:
       //   File object  → new upload (already handled above)
       //   null         → user removed the file, send empty string to signal deletion
       //   string path  → existing file unchanged, send as-is so backend skips it
@@ -245,7 +264,6 @@ export function buildConfigFromSchema(
         if (data[field.name] === null) {
           data[field.name] = "";
         }
-        // Keep string values (existing paths) so the backend knows not to delete
         continue;
       }
       if (
@@ -372,20 +390,38 @@ export function buildColumnsFromSchema(
                   </span>,
                 );
 
-              case "image":
+              case "image": {
+                const imgClass =
+                  col.imageSize ?? "w-10 h-10 rounded-md object-cover";
+                if (col.multi && Array.isArray(rawValue)) {
+                  const paths = (rawValue as string[]).filter(Boolean);
+                  if (!paths.length)
+                    return <span className="text-muted-foreground">—</span>;
+                  return wrapClickToEdit(
+                    <div className="flex items-center -space-x-2">
+                      {paths.map((p, i) => (
+                        <img
+                          key={i}
+                          src={mediaUrl(p)}
+                          alt=""
+                          className={`${imgClass} ring-2 ring-background`}
+                        />
+                      ))}
+                    </div>,
+                  );
+                }
                 return wrapClickToEdit(
                   rawValue ? (
                     <img
                       src={mediaUrl(String(rawValue))}
                       alt=""
-                      className={
-                        col.imageSize ?? "w-10 h-10 rounded-md object-cover"
-                      }
+                      className={imgClass}
                     />
                   ) : (
                     <span className="text-muted-foreground">—</span>
                   ),
                 );
+              }
 
               case "boolean":
                 return (
@@ -505,15 +541,31 @@ export function buildColumnsFromSchema(
               }
 
               case "thumbnail": {
+                const thumbClass =
+                  col.imageSize ?? "w-16 h-12 rounded-md object-cover border";
+                if (col.multi && Array.isArray(rawValue)) {
+                  const paths = (rawValue as string[]).filter(Boolean);
+                  if (!paths.length)
+                    return <span className="text-muted-foreground">—</span>;
+                  return wrapClickToEdit(
+                    <div className="flex items-center gap-1.5">
+                      {paths.map((p, i) => (
+                        <img
+                          key={i}
+                          src={mediaUrl(p)}
+                          alt=""
+                          className={thumbClass}
+                        />
+                      ))}
+                    </div>,
+                  );
+                }
                 return wrapClickToEdit(
                   rawValue ? (
                     <img
                       src={mediaUrl(String(rawValue))}
                       alt=""
-                      className={
-                        col.imageSize ??
-                        "w-16 h-12 rounded-md object-cover border"
-                      }
+                      className={thumbClass}
                     />
                   ) : (
                     <span className="text-muted-foreground">—</span>

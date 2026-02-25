@@ -114,6 +114,8 @@ export interface FieldSchema {
   maxFileSize?: number;
   /** Media URL prefix for displaying existing files (e.g. "/uploads/") */
   mediaUrl?: string;
+  /** Allow multiple file uploads */
+  multiple?: boolean;
 }
 
 // ─── Field Renderer ─────────────────────────────────────────────────────────
@@ -353,6 +355,7 @@ const FileUploadField = React.memo<FileUploadFieldProps>(
       value={value}
       onChange={onChange}
       disabled={disabled}
+      multiple={field.multiple}
       acceptedTypes={field.acceptedTypes}
       maxFileSize={field.maxFileSize}
       mediaUrl={field.mediaUrl}

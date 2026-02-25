@@ -25,6 +25,7 @@ class FileUpload extends Field
     protected null|int $compressQuality = null;
     protected null|array $resizeDimensions = null;
     protected null|string $mediaUrl = null;
+    protected bool $multiple = false;
 
     public static function make(string $name): static
     {
@@ -66,6 +67,11 @@ class FileUpload extends Field
     public function getResize(): null|array
     {
         return $this->resizeDimensions;
+    }
+
+    public function isMultiple(): bool
+    {
+        return $this->multiple;
     }
 
     // ─── Property Setters ───────────────────────────────────────────────
@@ -126,6 +132,15 @@ class FileUpload extends Field
         return $this;
     }
 
+    /**
+     * Allow multiple file uploads.
+     */
+    public function multi(bool $multiple = true): static
+    {
+        $this->multiple = $multiple;
+        return $this;
+    }
+
     // ─── Serialisation ──────────────────────────────────────────────────
 
     public function toArray(): array
@@ -144,6 +159,8 @@ class FileUpload extends Field
             $arr['resize'] = $this->resizeDimensions;
         if ($this->mediaUrl !== null)
             $arr['mediaUrl'] = $this->mediaUrl;
+        if ($this->multiple)
+            $arr['multiple'] = true;
 
         return $arr;
     }

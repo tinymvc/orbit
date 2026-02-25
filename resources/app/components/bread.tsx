@@ -319,7 +319,9 @@ const BreadDrawer = React.memo<BreadDrawerProps>(
         setFormErrors({});
 
         const hasFiles = Object.values(submitData).some(
-          (v) => v instanceof File,
+          (v) =>
+            v instanceof File ||
+            (Array.isArray(v) && v.some((item) => item instanceof File)),
         );
 
         const options = {

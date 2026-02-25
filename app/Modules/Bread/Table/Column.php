@@ -32,6 +32,7 @@ class Column implements Arrayable
     protected null|string $fallback = null;
     protected null|string $avatarFieldName = null;
     protected null|string $descriptionField = null;
+    protected bool $multi = false;
 
     // ─── Constructor & Factory ──────────────────────────────────────────
 
@@ -227,6 +228,18 @@ class Column implements Arrayable
         return $this;
     }
 
+    /**
+     * Mark this column as displaying multiple values (array data).
+     * Useful for image/thumbnail columns that store an array of file paths.
+     *
+     * @example Column::make('thumbnail')->thumbnail()->multi()
+     */
+    public function multi(bool $multi = true): static
+    {
+        $this->multi = $multi;
+        return $this;
+    }
+
     // ─── Getters ────────────────────────────────────────────────────────
 
     public function getKey(): string
@@ -271,6 +284,8 @@ class Column implements Arrayable
             $arr['avatarField'] = $this->avatarFieldName;
         if ($this->descriptionField !== null)
             $arr['descriptionField'] = $this->descriptionField;
+        if ($this->multi)
+            $arr['multi'] = true;
 
         return $arr;
     }

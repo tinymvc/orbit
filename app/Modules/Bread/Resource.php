@@ -11,6 +11,8 @@ use Spark\Database\Model;
 use Spark\Database\QueryBuilder;
 use Spark\Http\Request;
 use function count;
+use function in_array;
+use function is_array;
 
 /**
  * Abstract base for all BREAD resources.
@@ -281,6 +283,38 @@ abstract class Resource
                 resize: $field->getResize(),
             );
 
+            // ── Multiple file upload ────────────────────────────────────
+            if ($field->isMultiple()) {
+                $existingPaths = [];
+                if ($existingRecord && !empty($existingRecord->{$name})) {
+                    $raw = $existingRecord->{$name};
+                    $existingPaths = is_array($raw) ? $raw : (array) json_decode($raw, true);
+                }
+
+                // Collect paths the client sent back (existing files to keep)
+                $inputValue = $request->post($name, []);
+                $keptPaths = is_array($inputValue) ? array_filter($inputValue, 'is_string') : [];
+
+                // Delete removed files (existing paths not in kept list)
+                foreach ($existingPaths as $oldPath) {
+                    if (!in_array($oldPath, $keptPaths, true)) {
+                        $uploader->delete($oldPath);
+                    }
+                }
+
+                // Upload new files
+                $newPaths = [];
+                if ($request->hasFile($name)) {
+                    $uploader->multiple = true;
+                    $newPaths = (array) $uploader->upload($name);
+                }
+
+                $uploadedFiles[$name] = array_values([...$keptPaths, ...$newPaths]);
+                continue;
+            }
+
+            // ── Single file upload (unchanged logic) ────────────────────
+
             // New file uploaded — handle upload + old file cleanup
             if ($request->hasFile($name)) {
                 // Delete old file on update
@@ -325,8 +359,15 @@ abstract class Resource
         foreach (static::getFileFields() as $field) {
             $name = $field->getName();
             if (!empty($record->{$name})) {
-                uploader(uploadTo: $field->getUploadTo())
-                    ->delete($record->{$name});
+                $value = $record->{$name};
+                $up = uploader(uploadTo: $field->getUploadTo());
+                if (is_array($value)) {
+                    foreach ($value as $path) {
+                        $up->delete($path);
+                    }
+                } else {
+                    $up->delete($value);
+                }
             }
         }
     }

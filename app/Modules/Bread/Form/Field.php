@@ -152,6 +152,11 @@ abstract class Field implements Arrayable
         return false;
     }
 
+    public function isMultiple(): bool
+    {
+        return false;
+    }
+
     // File upload stubs — overridden by FileUpload
     public function getUploadTo(): null|string
     {
