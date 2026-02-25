@@ -86,6 +86,8 @@ export interface ServerFieldSchema {
   searchRoute?: string;
   /** Relationship name (e.g. "categories") */
   relationship?: string;
+  /** Relationship type: 'belongsTo' or 'belongsToMany' */
+  relationType?: string;
   /** Max selectable items */
   maxItems?: number;
 }
@@ -146,6 +148,7 @@ function resolveOptions(
 function serverFieldToFieldSchema(
   sf: ServerFieldSchema,
   dynamicOptions: DynamicOptions,
+  resourceUrl?: string,
 ): FieldSchema {
   const field: FieldSchema = {
     name: sf.name,
@@ -181,8 +184,33 @@ function serverFieldToFieldSchema(
     taggable: sf.taggable,
     searchRoute: sf.searchRoute,
     relationship: sf.relationship,
+    relationType: sf.relationType,
     maxItems: sf.maxItems,
   };
+
+  // Build onSearch callback when searchRoute is set (ajax combobox)
+  if (
+    sf.type === "combobox" &&
+    (sf.searchRoute || sf.relationship) &&
+    resourceUrl
+  ) {
+    const base = sf.searchRoute?.startsWith("/") ? sf.searchRoute : resourceUrl;
+    const searchUrl = base.endsWith("/search") ? base : `${base}/search`;
+    const fieldName = sf.name;
+
+    field.onSearch = async (query: string) => {
+      try {
+        const params = new URLSearchParams({ field: fieldName, query });
+        const res = await fetch(`${searchUrl}?${params.toString()}`, {
+          headers: { Accept: "application/json" },
+        });
+        if (!res.ok) return [];
+        return (await res.json()) as { value: string; label: string }[];
+      } catch {
+        return [];
+      }
+    };
+  }
 
   // Convert visibleWhen JSON to a function
   if (sf.visibleWhen && Object.keys(sf.visibleWhen).length > 0) {
@@ -201,7 +229,7 @@ export function buildConfigFromSchema(
   dynamicOptions: DynamicOptions = {},
 ): BreadConfig {
   const fields = schema.fields.map((f) =>
-    serverFieldToFieldSchema(f, dynamicOptions),
+    serverFieldToFieldSchema(f, dynamicOptions, schema.url),
   );
 
   // Default form values derived from field schemas
@@ -237,14 +265,19 @@ export function buildConfigFromSchema(
         // Keep string paths as-is for preview; null/undefined → ""
         form[field.name] = val ?? "";
       } else if (field.type === "combobox" && field.relationship) {
-        // Extract IDs from eager-loaded relationship array
-        const related = record[field.name];
-        if (Array.isArray(related)) {
-          form[field.name] = related.map((r: Record<string, unknown>) =>
-            String(r.id ?? ""),
-          );
+        if (field.relationType === "belongsTo") {
+          // BelongsTo: value is the FK directly on the record (e.g. user_id)
+          form[field.name] = val != null ? String(val) : "";
         } else {
-          form[field.name] = field.multiple ? [] : "";
+          // BelongsToMany: extract IDs from eager-loaded relationship array
+          const related = record[field.relationship];
+          if (Array.isArray(related)) {
+            form[field.name] = related.map((r: Record<string, unknown>) =>
+              String(r.id ?? ""),
+            );
+          } else {
+            form[field.name] = [];
+          }
         }
       } else if (field.type === "select" && val !== null && val !== undefined) {
         form[field.name] = String(val);
@@ -261,9 +294,15 @@ export function buildConfigFromSchema(
       // Preserve File objects (Inertia auto-converts to FormData)
       if (data[field.name] instanceof File) continue;
 
-      // Handle combobox fields: keep arrays as-is
+      // Handle combobox fields
       if (field.type === "combobox") {
-        if (field.multiple) {
+        if (field.relationType === "belongsTo") {
+          // BelongsTo: cast to number for FK column
+          if (data[field.name]) {
+            data[field.name] = Number(data[field.name]);
+          }
+        } else if (field.multiple) {
+          // BelongsToMany or regular multiple: keep arrays as-is
           const arr = Array.isArray(data[field.name])
             ? (data[field.name] as string[])
             : [];
@@ -709,6 +748,7 @@ export function buildColumnsFromSchema(
 export function buildFormFieldsFromSchema(
   serverFields: ServerFieldSchema[],
   dynamicOptions: DynamicOptions = {},
+  resourceUrl?: string,
 ): React.ComponentType<{
   formData: Record<string, unknown>;
   isEdit: boolean;
@@ -716,7 +756,7 @@ export function buildFormFieldsFromSchema(
   formErrors: Record<string, string>;
 }> {
   const fields = serverFields.map((f) =>
-    serverFieldToFieldSchema(f, dynamicOptions),
+    serverFieldToFieldSchema(f, dynamicOptions, resourceUrl),
   );
 
   return function ServerFormFields({
@@ -762,8 +802,8 @@ export function useServerResource(
     [schema],
   );
   const FormFields = React.useMemo(
-    () => buildFormFieldsFromSchema(schema.fields, dynamicOptions),
-    [schema.fields, dynamicOptions],
+    () => buildFormFieldsFromSchema(schema.fields, dynamicOptions, schema.url),
+    [schema.fields, dynamicOptions, schema.url],
   );
 
   return { config, columnsCallback, FormFields };

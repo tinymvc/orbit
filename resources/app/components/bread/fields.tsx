@@ -126,8 +126,12 @@ export interface FieldSchema {
   searchRoute?: string;
   /** Relationship name on the model (e.g. "categories") */
   relationship?: string;
+  /** Relationship type: 'belongsTo' or 'belongsToMany' */
+  relationType?: string;
   /** Max selectable items (combobox) */
   maxItems?: number;
+  /** Async search callback for combobox (built from searchRoute in resource.tsx) */
+  onSearch?: (query: string) => Promise<FieldOption[]>;
 }
 
 // ─── Field Renderer ─────────────────────────────────────────────────────────
@@ -340,6 +344,7 @@ export const FieldRenderer = React.memo<FieldRendererProps>(
                 : ((value as string) ?? "")
             }
             onChange={onChange}
+            onSearch={field.onSearch}
             multiple={field.multiple}
             taggable={field.taggable}
             maxItems={field.maxItems}

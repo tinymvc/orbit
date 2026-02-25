@@ -2,6 +2,7 @@
 
 namespace App\Modules\Bread;
 
+use App\Modules\Bread\Form;
 use Spark\Facades\Route;
 use Spark\Foundation\Application;
 use Spark\Http\Request;
@@ -174,6 +175,64 @@ class ResourceController
         return [$data, $uploadedFiles];
     }
 
+    // ─── Search (Ajax for Combobox) ──────────────────────────────────────
+
+    /**
+     * Handle AJAX search requests for Combobox fields with a searchRoute.
+     *
+     * GET /admin/{slug}/search?field=categories&query=tech
+     *
+     * Returns JSON: [ { value: "1", label: "Tech" }, ... ]
+     */
+    public function search(Request $request)
+    {
+        $fieldName = $request->input('field', '');
+        $query = $request->input('query', '');
+
+        // Find the matching Combobox field with a searchRoute
+        $combobox = null;
+        foreach ($this->resource::fields() as $field) {
+            if ($field instanceof Form\Combobox && $field->getName() === $fieldName) {
+                $combobox = $field;
+                break;
+            }
+        }
+
+        if (!$combobox) {
+            return json(['error' => 'Field not found'], 404);
+        }
+
+        // Non-relationship combobox — for now, return static options filtered
+        if (!$combobox->isRelationship()) {
+            return json([]);
+        }
+
+        // Use the relationship's related model
+        $parentModel = $this->resource::getModel();
+        $relationName = $combobox->getRelationName();
+        $relation = (new $parentModel)->$relationName();
+        $relatedModel = $relation->getConfig()['related'];
+        $valueKey = $combobox->getRelationValueKey() ?: 'id';
+        $labelKey = $combobox->getRelationLabelKey() ?: 'name';
+
+        // Query the related model
+        $builder = $relatedModel::select([$valueKey, $labelKey]);
+
+        if ($query !== '') {
+            $builder = $builder->like($labelKey, "%{$query}%");
+        }
+
+        $options = $builder->orderBy($labelKey)
+            ->limit(50)
+            ->get()
+            ->map(fn($row) => [
+                'value' => (string) $row->{$valueKey},
+                'label' => $row->{$labelKey},
+            ])->all();
+
+        return json($options);
+    }
+
     // ─── Destroy ────────────────────────────────────────────────────────
 
     public function destroy(int $id)
@@ -281,6 +340,7 @@ class ResourceController
      *   PUT    /admin/{slug}/{id}        → update
      *   DELETE /admin/{slug}/{id}        → destroy
      *   POST   /admin/{slug}/bulk-action → bulkAction
+     *   GET    /admin/{slug}/search      → search (for Combobox AJAX)
      * 
      * @param class-string<Resource> $resourceClass
      * 
@@ -299,6 +359,9 @@ class ResourceController
             // Register routes
             Route::post("$slug/bulk-action", [$controller, 'bulkAction'])
                 ->name("$name.actions");
+
+            Route::get("$slug/search", [$controller, 'search'])
+                ->name("$name.search");
 
             Route::get($slug, [$controller, 'index'])
                 ->name("$name.index");

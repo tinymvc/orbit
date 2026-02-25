@@ -2,7 +2,6 @@
 
 namespace App\Http\Resources;
 
-use App\Models\Category;
 use App\Models\Post;
 use App\Models\User;
 use App\Modules\Bread\Form\Combobox;
@@ -72,15 +71,23 @@ class PostsResource extends Resource
                 ->placeholder('auto-generated-from-title')
                 ->description('URL-friendly version of the title. Auto-generated on create.'),
 
-            Select::make('user_id')
+            // Select::make('user_id')
+            //     ->label('Author')
+            //     ->required()
+            //     ->dynamicOptions('authors'),
+
+            Combobox::make('user_id')
                 ->label('Author')
                 ->required()
-                ->dynamicOptions('authors'),
+                ->belongsTo('user', 'id', 'username')
+                ->searchRoute(self::getUrl())
+                ->placeholder('Select author...')
+                ->description('The author of the post.'),
 
             Combobox::make('categories')
                 ->label('Categories')
-                ->relationship('categories', 'id', 'name')
-                ->dynamicOptions('categories')
+                ->belongsToMany('categories', 'id', 'name')
+                ->searchRoute(self::getUrl())
                 ->placeholder('Select categories...')
                 ->description('Assign one or more categories to this post.'),
 
@@ -230,12 +237,6 @@ class PostsResource extends Resource
                 ->map(fn($a) => [
                     'value' => (string) $a->id,
                     'label' => $a->display_name ?: $a->username,
-                ])->all(...),
-            'categories' => Category::select(['id', 'name'])
-                ->orderBy('name')
-                ->map(fn($c) => [
-                    'value' => (string) $c->id,
-                    'label' => $c->name,
                 ])->all(...),
         ];
     }

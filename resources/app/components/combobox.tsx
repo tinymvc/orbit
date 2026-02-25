@@ -7,6 +7,14 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import {
+  ChevronDown,
+  Check,
+  X,
+  Search,
+  LoaderCircle,
+  Plus,
+} from "lucide-react";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -39,94 +47,6 @@ export interface ComboboxProps {
   /** Custom class for the trigger */
   className?: string;
 }
-
-// ─── Icons ──────────────────────────────────────────────────────────────────
-
-const ChevronDown = () => (
-  <svg
-    className="w-4 h-4 shrink-0 opacity-50"
-    fill="none"
-    stroke="currentColor"
-    viewBox="0 0 24 24"
-  >
-    <path
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth={2}
-      d="M19 9l-7 7-7-7"
-    />
-  </svg>
-);
-
-const CheckIcon = () => (
-  <svg
-    className="w-4 h-4 shrink-0 text-primary"
-    fill="none"
-    stroke="currentColor"
-    viewBox="0 0 24 24"
-  >
-    <path
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth={2}
-      d="M5 13l4 4L19 7"
-    />
-  </svg>
-);
-
-const XIcon = ({ className }: { className?: string }) => (
-  <svg
-    className={cn("w-3 h-3", className)}
-    fill="none"
-    stroke="currentColor"
-    viewBox="0 0 24 24"
-  >
-    <path
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth={2}
-      d="M6 18L18 6M6 6l12 12"
-    />
-  </svg>
-);
-
-const SearchIcon = () => (
-  <svg
-    className="w-4 h-4 shrink-0 text-muted-foreground"
-    fill="none"
-    stroke="currentColor"
-    viewBox="0 0 24 24"
-  >
-    <path
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth={2}
-      d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-    />
-  </svg>
-);
-
-const Spinner = () => (
-  <svg
-    className="w-4 h-4 shrink-0 animate-spin text-muted-foreground"
-    fill="none"
-    viewBox="0 0 24 24"
-  >
-    <circle
-      className="opacity-25"
-      cx="12"
-      cy="12"
-      r="10"
-      stroke="currentColor"
-      strokeWidth="4"
-    />
-    <path
-      className="opacity-75"
-      fill="currentColor"
-      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-    />
-  </svg>
-);
 
 // ─── Component ──────────────────────────────────────────────────────────────
 
@@ -210,6 +130,35 @@ export const Combobox = React.memo<ComboboxProps>(function Combobox({
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
   }, [query, onSearch, open, searchDebounce]);
+
+  // fire a one-time empty search to seed labels from the server.
+  const didSeedRef = React.useRef(false);
+  React.useEffect(() => {
+    if (didSeedRef.current || !onSearch || selected.length === 0) return;
+
+    // Check if any selected value is missing a label
+    const hasUnresolved = selected.some(
+      (v) =>
+        !staticOptions.some((o) => o.value === v) &&
+        !asyncOptions.some((o) => o.value === v),
+    );
+    if (!hasUnresolved) return;
+
+    didSeedRef.current = true;
+    (async () => {
+      try {
+        const results = await onSearch("");
+        setAsyncOptions((prev) => {
+          const map = new Map<string, ComboboxOption>();
+          for (const o of prev) map.set(o.value, o);
+          for (const o of results) map.set(o.value, o);
+          return Array.from(map.values());
+        });
+      } catch {
+        // ignore — labels will show raw values as fallback
+      }
+    })();
+  }, [onSearch, selected, staticOptions, asyncOptions]);
 
   // Focus input when popover opens
   React.useEffect(() => {
@@ -354,14 +303,19 @@ export const Combobox = React.memo<ComboboxProps>(function Combobox({
                 >
                   <span className={newLocal}>{getLabel(val)}</span>
                   {!disabled && (
-                    <button
-                      type="button"
-                      className="ml-0.5 rounded-full hover:bg-muted-foreground/20 p-0.5"
-                      onClick={(e) => removeItem(val, e)}
+                    <span
+                      role="button"
                       tabIndex={-1}
+                      className="ml-0.5 rounded-full hover:bg-muted-foreground/20 p-0.5 cursor-pointer inline-flex"
+                      onClick={(e) => removeItem(val, e)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          removeItem(val);
+                        }
+                      }}
                     >
-                      <XIcon className="w-2.5 h-2.5" />
-                    </button>
+                      <X className="w-2.5 h-2.5" />
+                    </span>
                   )}
                 </Badge>
               ))
@@ -373,7 +327,7 @@ export const Combobox = React.memo<ComboboxProps>(function Combobox({
               <span>{placeholder}</span>
             )}
           </div>
-          <ChevronDown />
+          <ChevronDown className="w-4 h-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
 
@@ -383,7 +337,11 @@ export const Combobox = React.memo<ComboboxProps>(function Combobox({
       >
         {/* Search input */}
         <div className="flex items-center gap-2 border-b px-3 py-2">
-          {loading ? <Spinner /> : <SearchIcon />}
+          {loading ? (
+            <LoaderCircle className="w-4 h-4 shrink-0 animate-spin text-muted-foreground" />
+          ) : (
+            <Search className="w-4 h-4 shrink-0 text-muted-foreground" />
+          )}
           <input
             ref={inputRef}
             value={query}
@@ -398,7 +356,7 @@ export const Combobox = React.memo<ComboboxProps>(function Combobox({
               onClick={() => setQuery("")}
               className="text-muted-foreground hover:text-foreground"
             >
-              <XIcon className="w-3.5 h-3.5" />
+              <X className="w-3.5 h-3.5" />
             </button>
           )}
         </div>
@@ -429,7 +387,7 @@ export const Combobox = React.memo<ComboboxProps>(function Combobox({
                   !isSelected(opt.value) && "invisible",
                 )}
               >
-                <CheckIcon />
+                <Check className="w-4 h-4 shrink-0 text-primary" />
               </div>
               <span className="truncate">{opt.label}</span>
             </button>
@@ -442,19 +400,7 @@ export const Combobox = React.memo<ComboboxProps>(function Combobox({
               className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm cursor-pointer hover:bg-accent/50 text-primary"
               onClick={handleCreateTag}
             >
-              <svg
-                className="w-4 h-4 shrink-0"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 4v16m8-8H4"
-                />
-              </svg>
+              <Plus className="w-4 h-4 shrink-0" />
               <span>
                 Create &quot;<strong>{query.trim()}</strong>&quot;
               </span>

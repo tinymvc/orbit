@@ -373,10 +373,11 @@ abstract class Resource
         }
     }
 
-    // ─── Relationship (BelongsToMany) Helpers ───────────────────────────
+    // ─── Relationship (BelongsTo / BelongsToMany) Helpers ─────────────
 
     /**
-     * Get all Combobox fields configured with a relationship.
+     * Get all Combobox fields configured with a belongsToMany relationship.
+     * These need pivot sync() — belongsTo fields store FK directly on the model.
      *
      * @return Combobox[]
      */
@@ -384,7 +385,7 @@ abstract class Resource
     {
         return array_filter(
             static::fields(),
-            fn(Field $f) => $f instanceof Combobox && $f->isRelationship()
+            fn(Field $f) => $f instanceof Combobox && $f->isBelongsToMany()
         );
     }
 
