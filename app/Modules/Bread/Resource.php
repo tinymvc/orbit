@@ -324,7 +324,7 @@ abstract class Resource
                 continue;
             }
 
-            // ── Single file upload (unchanged logic) ────────────────────
+            // ── Single file upload ────────────────────
 
             // New file uploaded — handle upload + old file cleanup
             if ($request->hasFile($name)) {

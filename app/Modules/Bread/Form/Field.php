@@ -162,18 +162,22 @@ abstract class Field implements Arrayable
     {
         return null;
     }
+
     public function getAcceptedTypes(): array
     {
         return [];
     }
+
     public function getMaxFileSize(): ?int
     {
         return null;
     }
+
     public function getCompress(): ?int
     {
         return null;
     }
+
     public function getResize(): ?array
     {
         return null;

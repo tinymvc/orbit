@@ -52,12 +52,12 @@ class ResourceController
 
         $query = $this->resource::applyFilters($query, $request);
 
-        $paginated = $query->paginate($request->input('per_page', 10));
-
         return inertia($this->resource::getPage(), [
             'resource' => $this->resource::toSchema(...),
             'dynamicOptions' => $this->resource::dynamicProps(...),
-            'paginated' => $paginated,
+            'paginated' => fn() => $query->paginate(
+                $request->input('per_page', 10)
+            ),
         ]);
     }
 
@@ -111,7 +111,7 @@ class ResourceController
         $model = $this->resource::getModel();
         $record = $model::findOrFail($id);
 
-        [$data] = $this->setupDataForStore($request, $record);
+        [$data, $uploadedFiles] = $this->setupDataForStore($request, $record);
 
         // Extract relationship data before updating the record
         $relationData = $this->resource::extractRelationshipData($request);
@@ -129,6 +129,11 @@ class ResourceController
             return inertia()
                 ->back()
                 ->with('success', $this->resource::getName() . ' updated successfully.');
+        }
+
+        // Clean up uploaded files if creation failed
+        foreach ($uploadedFiles as $path) {
+            @uploader()->delete($path);
         }
 
         return inertia()

@@ -1,8 +1,8 @@
 import { Eclipse } from "lucide-react";
 
 export const sidebarConfig = {
-  collapsible: "icon",
-  variant: "inset",
+  collapsible: "icon", // offcanvas | icon | none
+  variant: "inset", //  sidebar | floating | inset
 };
 
 export const siteIdentity = {

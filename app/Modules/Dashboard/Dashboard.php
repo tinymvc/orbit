@@ -26,7 +26,7 @@ use Spark\Contracts\Support\Arrayable;
  */
 class Dashboard implements Arrayable
 {
-    protected string $title = 'Dashboard';
+    protected string $title = '';
     protected string $description = '';
 
     /** @var Stats[] */
@@ -38,8 +38,8 @@ class Dashboard implements Arrayable
     /** Date range configuration */
     protected bool $dateRangeEnabled = false;
     protected string $dateRangeRoute = '';
-    protected ?string $dateFrom = null;
-    protected ?string $dateTo = null;
+    protected null|string $dateFrom = null;
+    protected null|string $dateTo = null;
 
     /**
      * Date range presets (displayed as quick-select buttons).
@@ -51,7 +51,7 @@ class Dashboard implements Arrayable
     /**
      * Create a new dashboard instance.
      */
-    public static function make(string $title = 'Dashboard', string $description = ''): static
+    public static function make(string $title = '', string $description = ''): static
     {
         $instance = new static();
         $instance->title = $title;
@@ -127,7 +127,7 @@ class Dashboard implements Arrayable
     /**
      * Set the currently active date range (from the request).
      */
-    public function activeDateRange(?string $from, ?string $to): static
+    public function activeDateRange(null|string $from, null|string $to): static
     {
         $this->dateFrom = $from;
         $this->dateTo = $to;
