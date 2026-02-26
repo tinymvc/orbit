@@ -10,6 +10,7 @@ use App\Modules\Bread\Table\Filter;
 use Spark\Contracts\Support\Arrayable;
 use Spark\Database\Model;
 use Spark\Database\QueryBuilder;
+use Spark\Foundation\Application;
 use Spark\Http\Request;
 use function count;
 use function in_array;
@@ -152,6 +153,15 @@ abstract class Resource
     public static function applyFilters(QueryBuilder $query, Request $request)
     {
         foreach (static::filters() as $filter) {
+            // If the filter has a custom callback, call it with the query and request.
+            if ($filter instanceof Filter && $request->has($filter->getKey()) && ($callback = $filter->getCallback()) !== null) {
+                Application::$app->call(
+                    $callback,
+                    ['query' => $query, 'value' => $request->input($filter->getKey())]
+                );
+                continue; // Skip default handling if callback is defined
+            }
+
             $key = $filter instanceof Filter ? $filter->getKey() : ($filter['key'] ?? '');
             if ($request->has($key)) {
                 $query = $query->where($key, $request->input($key));
@@ -163,13 +173,13 @@ abstract class Resource
     /**
      * Apply search to the query.
      */
-    public static function applySearch(QueryBuilder $query, string $search)
+    public static function applySearch(QueryBuilder $query, string $search, null|array $cols = null)
     {
-        if (empty(static::$searchable)) {
+        $cols ??= static::$searchable;
+
+        if (empty($cols)) {
             return $query;
         }
-
-        $cols = static::$searchable;
 
         if (count($cols) === 1) {
             return $query->like($cols[0], "%$search%");

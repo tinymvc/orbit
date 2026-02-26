@@ -135,7 +135,7 @@ class FileUpload extends Field
     /**
      * Allow multiple file uploads.
      */
-    public function multi(bool $multiple = true): static
+    public function multiple(bool $multiple = true): static
     {
         $this->multiple = $multiple;
         return $this;

@@ -44,6 +44,8 @@ class Combobox extends Field
     protected null|string $relationName = null;
     protected null|string $relationValueKey = null;
     protected null|string $relationLabelKey = null;
+    protected null|array|string $selectKeys = null;
+    protected null|array|string $searchKeys = null;
     protected string $relationType = 'belongsToMany'; // 'belongsTo' or 'belongsToMany'
 
     public static function make(string $name): static
@@ -143,6 +145,20 @@ class Combobox extends Field
         return $this;
     }
 
+    /** For AJAX Relationship, specify which keys to select for the options (e.g. "id,name") */
+    public function selectKeys(array|string $keys): static
+    {
+        $this->selectKeys = $keys;
+        return $this;
+    }
+
+    /** For AJAX Relationship, specify which keys to search on (e.g. "name,description") */
+    public function searchKeys(array|string $keys): static
+    {
+        $this->searchKeys = $keys;
+        return $this;
+    }
+
     // ─── Getters ────────────────────────────────────────────────────────
 
     public function isMultiple(): bool
@@ -173,6 +189,16 @@ class Combobox extends Field
     public function getRelationType(): string
     {
         return $this->relationType;
+    }
+
+    public function getSelectKeys(): null|array|string
+    {
+        return $this->selectKeys;
+    }
+
+    public function getSearchKeys(): null|array|string
+    {
+        return $this->searchKeys;
     }
 
     public function isBelongsTo(): bool

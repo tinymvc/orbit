@@ -7,7 +7,7 @@ namespace App\Modules\Bread\Form;
  *
  * @example
  *   Select::make('status')->options([['value' => 'draft', 'label' => 'Draft'], ...])->required()
- *   Select::make('tags')->multi()->options('dynamic:tags')
+ *   Select::make('tags')->multiple()->options('dynamic:tags')
  */
 class Select extends Field
 {
@@ -28,7 +28,7 @@ class Select extends Field
     // ─── Property Setters ───────────────────────────────────────────────
 
     /** Enable multi-select mode */
-    public function multi(): static
+    public function multiple(): static
     {
         $this->isMulti = true;
         return $this;

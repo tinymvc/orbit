@@ -245,9 +245,9 @@ class Column implements Arrayable
      * Mark this column as displaying multiple values (array data).
      * Useful for image/thumbnail columns that store an array of file paths.
      *
-     * @example Column::make('thumbnail')->thumbnail()->multi()
+     * @example Column::make('thumbnail')->thumbnail()->multiple()
      */
-    public function multi(bool $multi = true): static
+    public function multiple(bool $multi = true): static
     {
         $this->multi = $multi;
         return $this;

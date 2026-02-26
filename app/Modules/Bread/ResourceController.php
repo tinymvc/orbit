@@ -214,12 +214,14 @@ class ResourceController
         $relatedModel = $relation->getConfig()['related'];
         $valueKey = $combobox->getRelationValueKey() ?: 'id';
         $labelKey = $combobox->getRelationLabelKey() ?: 'name';
+        $selectKeys = $combobox->getSelectKeys() ?: [$valueKey, $labelKey];
+        $searchKeys = $combobox->getSearchKeys() ?: [$labelKey];
 
         // Query the related model
-        $builder = $relatedModel::select([$valueKey, $labelKey]);
+        $builder = $relatedModel::select($selectKeys);
 
         if ($query !== '') {
-            $builder = $builder->like($labelKey, "%{$query}%");
+            Resource::applySearch($builder, $query, (array) $searchKeys);
         }
 
         $options = $builder->orderBy($labelKey)
@@ -307,18 +309,20 @@ class ResourceController
             }
         }
 
-        if ($this->resource::getEditPerm()) {
-            authorize('permission', $this->resource::getEditPerm());
-        }
+        if ($matchedAction) {
+            if ($this->resource::getEditPerm()) {
+                authorize('permission', $this->resource::getEditPerm());
+            }
 
-        $callback = $matchedAction->getCallback();
-        if ($callback) {
-            Application::$app->call($callback, ['ids' => $ids]);
-        } else {
-            $model = $this->resource::getModel();
-            $model::whereIn('id', $ids)->update([
-                $matchedAction->getStatusColumn() ?: 'status' => $action
-            ]);
+            $callback = $matchedAction->getCallback();
+            if ($callback) {
+                Application::$app->call($callback, ['ids' => $ids]);
+            } else {
+                $model = $this->resource::getModel();
+                $model::whereIn('id', $ids)->update([
+                    $matchedAction->getStatusColumn() ?: 'status' => $action
+                ]);
+            }
         }
 
         return inertia()

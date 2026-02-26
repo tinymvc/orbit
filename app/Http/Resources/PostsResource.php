@@ -2,8 +2,8 @@
 
 namespace App\Http\Resources;
 
+use App\Models\Category;
 use App\Models\Post;
-use App\Models\User;
 use App\Modules\Bread\Form\Combobox;
 use App\Modules\Bread\Form\DatePicker;
 use App\Modules\Bread\Form\FileUpload;
@@ -71,15 +71,12 @@ class PostsResource extends Resource
                 ->placeholder('auto-generated-from-title')
                 ->description('URL-friendly version of the title. Auto-generated on create.'),
 
-            // Select::make('user_id')
-            //     ->label('Author')
-            //     ->required()
-            //     ->dynamicOptions('authors'),
-
             Combobox::make('user_id')
                 ->label('Author')
                 ->required()
-                ->belongsTo('user', 'id', 'username')
+                ->belongsTo('user', 'id', 'display_name')
+                ->selectKeys(['id', 'first_name', 'last_name', 'username'])
+                ->searchKeys(['first_name', 'last_name', 'username'])
                 ->searchRoute(self::getUrl())
                 ->placeholder('Select author...')
                 ->description('The author of the post.'),
@@ -87,7 +84,7 @@ class PostsResource extends Resource
             Combobox::make('categories')
                 ->label('Categories')
                 ->belongsToMany('categories', 'id', 'name')
-                ->searchRoute(self::getUrl())
+                ->dynamicOptions('categories')
                 ->placeholder('Select categories...')
                 ->description('Assign one or more categories to this post.'),
 
@@ -209,9 +206,12 @@ class PostsResource extends Resource
                     ['value' => 'scheduled', 'label' => 'Scheduled'],
                 ]),
 
-            Filter::make('user_id')
-                ->label('Author')
-                ->options('dynamic:authors'),
+            Filter::make('category_id')
+                ->label('Category')
+                ->callback(function ($query, $value) {
+                    $query->whereHas('categories', fn($q) => $q->where('categories.id', (int) $value));
+                })
+                ->options('dynamic:categories'),
         ];
     }
 
@@ -232,11 +232,10 @@ class PostsResource extends Resource
     public static function dynamicProps(): array
     {
         return [
-            'authors' => User::select(['id', 'first_name', 'last_name', 'username'])
-                ->active()
+            'categories' => Category::select(['id', 'name'])
                 ->map(fn($a) => [
                     'value' => (string) $a->id,
-                    'label' => $a->display_name ?: $a->username,
+                    'label' => $a->name,
                 ])->all(...),
         ];
     }

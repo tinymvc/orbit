@@ -19,6 +19,7 @@ class Filter implements Arrayable
         protected string $key,
         protected null|string $label = null,
         protected array|string $options = [],
+        protected mixed $callback = null,
     ) {
     }
 
@@ -48,11 +49,22 @@ class Filter implements Arrayable
         return $this;
     }
 
+    public function callback(null|array|string|callable $callback): static
+    {
+        $this->callback = $callback;
+        return $this;
+    }
+
     // ─── Getters ────────────────────────────────────────────────────────
 
     public function getKey(): string
     {
         return $this->key;
+    }
+
+    public function getCallback(): null|array|string|callable
+    {
+        return $this->callback;
     }
 
     // ─── Serialisation ──────────────────────────────────────────────────
