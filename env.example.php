@@ -13,10 +13,7 @@ return [
     'debug' => true,
 
     // Application settings
-    'app' => [
-        'name' => 'Inertia Php', // Application name
-        'timezone' => 'UTC', // Application timezone
-    ],
+    'app' => require __DIR__ . '/config/app.php',
 
     'root_url' => 'http://localhost:8080', // Application URL
 
@@ -38,28 +35,8 @@ return [
     'app_key' => '{APP_KEY}', // Application key for encryption
 
     // Database connection settings
-    'database' => [
-        'driver' => 'sqlite', // Database driver
-        'file' => __DIR__ . '/database/sqlite.db', // SQLite Database filepath 
-    ],
+    'database' => require __DIR__ . '/config/database.php',
 
     // Mail server configurations
-    'mail' => [
-        'mailer' => [
-            'address' => '{MAILER_ADDRESS}',
-            'name' => '{MAILER_NAME}'
-        ],
-        'reply' => [
-            'address' => '{REPLY_ADDRESS}',
-            'name' => '{REPLY_NAME}'
-        ],
-        'smtp' => [
-            'enabled' => false,
-            'host' => '{SMTP_HOST}',
-            'port' => 2525,
-            'username' => '{SMTP_USERNAME}',
-            'password' => '{SMTP_PASSWORD}',
-            'encryption' => 'tls|ssl',
-        ],
-    ],
+    'mail' => require __DIR__ . '/config/mail.php',
 ];

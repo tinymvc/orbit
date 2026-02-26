@@ -37,6 +37,11 @@ class User extends Model
         'privileges',
     ];
 
+    public function notifications(): \Spark\Database\Relation\HasMany
+    {
+        return $this->hasMany(Notification::class);
+    }
+
     public function posts(): \Spark\Database\Relation\HasMany
     {
         return $this->hasMany(Post::class);

@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Models\Notification;
 use Inertia\Facades\Inertia;
 use Inertia\Facades\Props;
 use Spark\Facades\Auth;
@@ -18,7 +19,14 @@ class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        // i am registering services
+        // configure auth to use caching
+        Auth::configure([
+            'cache_enabled' => true,
+            'use_remember_token' => true,
+            'cache_expire' => '5 minutes',
+            'login_route' => 'admin.login',
+            'redirect_route' => 'admin.dashboard',
+        ]);
     }
 
     public function boot(): void
@@ -31,6 +39,26 @@ class AppServiceProvider extends ServiceProvider
                 'locale' => config('lang', 'en'),
             ]),
         ]);
+
+        // Share notification data for the logged-in user
+        if (is_logged()) {
+            Inertia::share([
+                // Always evaluated — badge count on every page
+                'notifications' => Props::always(fn() => [
+                    'unreadCount' => Notification::where('user_id', user('id'))
+                        ->whereNull('read_at')
+                        ->count(),
+                ]),
+                // Lazy — only evaluated when explicitly requested via router.reload({ only: ['notificationItems'] })
+                'notificationItems' => Props::lazy(
+                    Notification::where('user_id', user('id'))
+                        ->latest('id')
+                        ->limit(20)
+                        ->get()
+                        ->toArray(...)
+                ),
+            ]);
+        }
 
         // defining a gate for checking user permissions based on privileges
         Gate::define(
@@ -48,15 +76,6 @@ class AppServiceProvider extends ServiceProvider
                 'email' => 'That %s is already registered. Please use a different email address.',
                 'default' => 'The %s must be unique in our database. Please choose a different value.',
             ],
-        ]);
-
-        // configure auth to use caching
-        Auth::configure([
-            'cache_enabled' => true,
-            'use_remember_token' => true,
-            'cache_expire' => '5 minutes',
-            'login_route' => 'admin.login',
-            'redirect_route' => 'admin.dashboard',
         ]);
     }
 }

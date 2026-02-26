@@ -75,11 +75,13 @@ export function DashboardHeader({
   }, [range.from, range.to]);
 
   return (
-    <div className="sticky top-0 z-10 border-b bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/80">
+    <div className="sm:sticky top-0 -mt-3 sm:mt-auto z-10 border-b bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/80">
       <div className="flex flex-col gap-4 px-4 py-4 sm:flex-row sm:items-center sm:justify-between lg:px-6">
         {/* Title + date badge */}
         <div className="space-y-1">
-          <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">
+            {title}
+          </h1>
           {dateRangeLabel ? (
             <p className="text-muted-foreground flex items-center gap-2 text-sm">
               <span>Showing results for</span>

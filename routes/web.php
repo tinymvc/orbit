@@ -11,6 +11,7 @@
 use App\Http\Controllers\{
     AuthController,
     DashboardController,
+    NotificationsController,
     RolesController,
     UsersController
 };
@@ -43,6 +44,9 @@ Route::group(function () {
 
     Route::get('/', [DashboardController::class, 'overview'])
         ->name('dashboard');
+
+    Route::match(['get', 'post'], '/notifications', NotificationsController::class)
+        ->name('notifications');
 
     Route::match(['get', 'post'], '/profile', [AuthController::class, 'profile'])
         ->name('profile');

@@ -94,7 +94,7 @@ export function NavUser({ user }: NavUserProps) {
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
-                <Link href="/admin/settings/notifications">
+                <Link href="/admin/notifications">
                   <Bell />
                   Notifications
                 </Link>
