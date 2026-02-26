@@ -18,9 +18,9 @@ class {{ class }} extends Resource
     // ─── Core ───────────────────────────────────────────────────────────
 
     protected static string $model = {{ model }}::class;
-    protected static string $name = '{{ name::singular }}';
+    protected static string $name = '{{ name:singular }}';
     protected static string $slug = '{{ slug }}';
-    protected static null|string $title = '{{ name::plural }}';
+    protected static null|string $title = '{{ name:plural }}';
 
     // ─── Form Fields ────────────────────────────────────────────────────
 
@@ -31,7 +31,7 @@ class {{ class }} extends Resource
                 ->label('Name')
                 ->required()
                 ->maxLength(100)
-                ->placeholder('Enter {{ name::singular::lower }} name')
+                ->placeholder('Enter {{ name:singular:lower }} name')
                 ->columnSpan(2),
         ];
     }

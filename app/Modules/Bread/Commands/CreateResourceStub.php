@@ -38,9 +38,9 @@ class CreateResourceStub
                     '{{ class }}' => '::name:ucfirstResource',
                     '{{ model }}' => '::name:ucfirst',
                     '{{ slug }}' => $slug,
-                    '{{ name::plural }}' => '::name:pluralize:ucfirst',
-                    '{{ name::singular }}' => '::name:singularize:ucfirst',
-                    '{{ name::singular::lower }}' => '::name:singularize:lowercase',
+                    '{{ name:plural }}' => '::name:pluralize:ucfirst',
+                    '{{ name:singular }}' => '::name:singularize:ucfirst',
+                    '{{ name:singular:lower }}' => '::name:singularize:lowercase',
                 ],
             ]
         );
