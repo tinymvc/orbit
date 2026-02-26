@@ -15,6 +15,7 @@
 
 return [
     // Application service provider for registering and bootstrapping services
+    \App\Providers\OrbitServiceProvider::class,
     \App\Providers\AppServiceProvider::class,
     \Inertia\InertiaServiceProvider::class,
 ];

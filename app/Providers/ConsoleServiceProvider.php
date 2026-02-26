@@ -15,6 +15,7 @@ class ConsoleServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
+        // Register the "make:bread" command for creating BREAD resources
         $this->app->make(Commands::class)
             ->addCommand('make:bread', CreateResourceStub::class, 'Create a new BREAD resource');
     }
