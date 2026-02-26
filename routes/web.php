@@ -10,6 +10,7 @@
 
 use App\Http\Controllers\{
     AuthController,
+    DashboardController,
     RolesController,
     UsersController
 };
@@ -40,7 +41,7 @@ Route::group(function () {
     Route::post('/logout', [AuthController::class, 'logout'])
         ->name('logout');
 
-    Route::inertia('/', 'admin/dashboard')
+    Route::get('/', [DashboardController::class, 'overview'])
         ->name('dashboard');
 
     Route::match(['get', 'post'], '/profile', [AuthController::class, 'profile'])

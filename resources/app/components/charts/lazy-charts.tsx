@@ -20,19 +20,30 @@ export {
   YAxis,
   Tooltip,
   Legend,
+  Radar,
+  PolarGrid,
+  PolarAngleAxis,
+  PolarRadiusAxis,
+  RadialBar,
+  RadialBarChart as RadialBarChartBase,
+  Line,
 } from "recharts";
 
 import type {
   AreaChart,
   BarChart,
   PieChart,
+  RadarChart,
   ResponsiveContainer,
+  LineChart,
 } from "recharts";
 
 // Type helpers for container components
 type AreaChartProps = ComponentProps<typeof AreaChart>;
 type BarChartProps = ComponentProps<typeof BarChart>;
 type PieChartProps = ComponentProps<typeof PieChart>;
+type RadarChartProps = ComponentProps<typeof RadarChart>;
+type LineChartProps = ComponentProps<typeof LineChart>;
 type ResponsiveContainerProps = ComponentProps<typeof ResponsiveContainer>;
 
 // Lazy load only container chart components
@@ -54,6 +65,18 @@ export const LazyPieChart = lazy(() =>
   })),
 );
 
+export const LazyRadarChart = lazy(() =>
+  import("recharts").then((mod) => ({
+    default: mod.RadarChart as unknown as ComponentType<RadarChartProps>,
+  })),
+);
+
+export const LazyLineChart = lazy(() =>
+  import("recharts").then((mod) => ({
+    default: mod.LineChart as unknown as ComponentType<LineChartProps>,
+  })),
+);
+
 export const LazyResponsiveContainer = lazy(() =>
   import("recharts").then((mod) => ({
     default:
@@ -66,5 +89,7 @@ export type {
   AreaChartProps,
   BarChartProps,
   PieChartProps,
+  RadarChartProps,
+  LineChartProps,
   ResponsiveContainerProps,
 };
