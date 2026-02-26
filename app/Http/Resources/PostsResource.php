@@ -4,18 +4,9 @@ namespace App\Http\Resources;
 
 use App\Models\Category;
 use App\Models\Post;
-use App\Modules\Bread\Form\Combobox;
-use App\Modules\Bread\Form\DatePicker;
-use App\Modules\Bread\Form\FileUpload;
-use App\Modules\Bread\Form\RichEditor;
-use App\Modules\Bread\Form\Select;
-use App\Modules\Bread\Form\SlugInput;
-use App\Modules\Bread\Form\Textarea;
-use App\Modules\Bread\Form\TextInput;
+use App\Modules\Bread\Form;
 use App\Modules\Bread\Resource;
-use App\Modules\Bread\Table\BulkAction;
-use App\Modules\Bread\Table\Column;
-use App\Modules\Bread\Table\Filter;
+use App\Modules\Bread\Table;
 
 /**
  * Posts BREAD Resource
@@ -55,14 +46,14 @@ class PostsResource extends Resource
     public static function fields(): array
     {
         return [
-            TextInput::make('title')
+            Form\TextInput::make('title')
                 ->label('Title')
                 ->required()
                 ->maxLength(255)
                 ->placeholder('Enter post title')
                 ->columnSpan(2),
 
-            SlugInput::make('slug')
+            Form\SlugInput::make('slug')
                 ->from('title')
                 ->label('Slug')
                 ->required()
@@ -71,7 +62,7 @@ class PostsResource extends Resource
                 ->placeholder('auto-generated-from-title')
                 ->description('URL-friendly version of the title. Auto-generated on create.'),
 
-            Combobox::make('user_id')
+            Form\Combobox::make('user_id')
                 ->label('Author')
                 ->required()
                 ->belongsTo('user', 'id', 'display_name')
@@ -81,14 +72,14 @@ class PostsResource extends Resource
                 ->placeholder('Select author...')
                 ->description('The author of the post.'),
 
-            Combobox::make('categories')
+            Form\Combobox::make('categories')
                 ->label('Categories')
                 ->belongsToMany('categories', 'id', 'name')
                 ->dynamicOptions('categories')
                 ->placeholder('Select categories...')
                 ->description('Assign one or more categories to this post.'),
 
-            Select::make('status')
+            Form\Select::make('status')
                 ->label('Status')
                 ->required()
                 ->default('draft')
@@ -100,14 +91,14 @@ class PostsResource extends Resource
                 ])
                 ->in('draft,published,archived,scheduled'),
 
-            DatePicker::make('published_at')
+            Form\DatePicker::make('published_at')
                 ->withTime()
                 ->label('Published At')
                 ->description('When the post was or will be published.')
                 ->visibleWhen(['status' => 'published'])
                 ->fullWidth(),
 
-            DatePicker::make('scheduled_at')
+            Form\DatePicker::make('scheduled_at')
                 ->withTime()
                 ->label('Scheduled At')
                 ->disablePastDates()
@@ -115,7 +106,7 @@ class PostsResource extends Resource
                 ->visibleWhen(['status' => 'scheduled'])
                 ->fullWidth(),
 
-            FileUpload::make('thumbnail')
+            Form\FileUpload::make('thumbnail')
                 ->label('Thumbnail')
                 ->uploadTo('posts')
                 ->acceptedTypes(['jpg', 'jpeg', 'png', 'webp', 'gif'])
@@ -124,14 +115,14 @@ class PostsResource extends Resource
                 ->description('Upload a thumbnail image for the post.')
                 ->columnSpan(2),
 
-            Textarea::make('excerpt')
+            Form\Textarea::make('excerpt')
                 ->label('Excerpt')
                 ->maxLength(500)
                 ->rows(3)
                 ->placeholder('Brief summary of the post...')
                 ->columnSpan(2),
 
-            RichEditor::make('content')
+            Form\RichEditor::make('content')
                 ->label('Content')
                 ->rows(12)
                 ->placeholder('Write the full post content here...')
@@ -144,20 +135,20 @@ class PostsResource extends Resource
     public static function columns(): array
     {
         return [
-            Column::make('title')
+            Table\Column::make('title')
                 ->clickToEdit()
                 ->truncate(45),
 
-            Column::make('thumbnail')
+            Table\Column::make('thumbnail')
                 ->header('Thumbnail')
                 ->thumbnail(),
 
-            Column::make('user')
+            Table\Column::make('user')
                 ->header('Author')
                 ->avatar('avatar_url')
                 ->display(['display_name']),
 
-            Column::make('status')
+            Table\Column::make('status')
                 ->badge()
                 ->badgeMap([
                     'draft' => ['label' => 'Draft', 'variant' => 'secondary'],
@@ -166,26 +157,26 @@ class PostsResource extends Resource
                     'scheduled' => ['label' => 'Scheduled', 'variant' => 'secondary'],
                 ]),
 
-            Column::make('categories')
+            Table\Column::make('categories')
                 ->header('Categories')
                 ->tags()
                 ->display(['name'])
                 ->limit(3),
 
-            Column::make('excerpt')
+            Table\Column::make('excerpt')
                 ->truncate(60)
                 ->hidden(),
 
-            Column::make('published_at')
+            Table\Column::make('published_at')
                 ->header('Published')
                 ->date(),
 
-            Column::make('scheduled_at')
+            Table\Column::make('scheduled_at')
                 ->header('Scheduled')
                 ->date()
                 ->hidden(),
 
-            Column::make('created_at')
+            Table\Column::make('created_at')
                 ->header('Created')
                 ->hidden()
                 ->date(),
@@ -197,7 +188,7 @@ class PostsResource extends Resource
     public static function filters(): array
     {
         return [
-            Filter::make('status')
+            Table\Filter::make('status')
                 ->label('Status')
                 ->options([
                     ['value' => 'draft', 'label' => 'Draft'],
@@ -206,7 +197,7 @@ class PostsResource extends Resource
                     ['value' => 'scheduled', 'label' => 'Scheduled'],
                 ]),
 
-            Filter::make('category_id')
+            Table\Filter::make('category_id')
                 ->label('Category')
                 ->callback(function ($query, $value) {
                     $query->whereHas('categories', fn($q) => $q->where('categories.id', (int) $value));
@@ -220,10 +211,10 @@ class PostsResource extends Resource
     public static function bulkActions(): array
     {
         return [
-            BulkAction::make('published')->label('Publish Selected'),
-            BulkAction::make('draft')->label('Move to Draft'),
-            BulkAction::make('archived')->label('Archive Selected'),
-            BulkAction::make('delete')->label('Delete Selected')->destructive(),
+            Table\BulkAction::make('published')->label('Publish Selected'),
+            Table\BulkAction::make('draft')->label('Move to Draft'),
+            Table\BulkAction::make('archived')->label('Archive Selected'),
+            Table\BulkAction::make('delete')->label('Delete Selected')->destructive(),
         ];
     }
 

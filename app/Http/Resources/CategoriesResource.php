@@ -3,11 +3,9 @@
 namespace App\Http\Resources;
 
 use App\Models\Category;
-use App\Modules\Bread\Form\SlugInput;
-use App\Modules\Bread\Form\Textarea;
-use App\Modules\Bread\Form\TextInput;
+use App\Modules\Bread\Form;
 use App\Modules\Bread\Resource;
-use App\Modules\Bread\Table\Column;
+use App\Modules\Bread\Table;
 
 /**
  * Categories BREAD Resource
@@ -43,14 +41,14 @@ class CategoriesResource extends Resource
     public static function fields(): array
     {
         return [
-            TextInput::make('name')
+            Form\TextInput::make('name')
                 ->label('Name')
                 ->required()
                 ->maxLength(100)
                 ->placeholder('Enter category name')
                 ->columnSpan(2),
 
-            SlugInput::make('slug')
+            Form\SlugInput::make('slug')
                 ->from('name')
                 ->label('Slug')
                 ->required()
@@ -59,7 +57,7 @@ class CategoriesResource extends Resource
                 ->placeholder('auto-generated-from-name')
                 ->description('URL-friendly version of the name. Auto-generated on create.'),
 
-            Textarea::make('description')
+            Form\Textarea::make('description')
                 ->label('Description')
                 ->maxLength(250)
                 ->rows(3)
@@ -73,14 +71,14 @@ class CategoriesResource extends Resource
     public static function columns(): array
     {
         return [
-            Column::make('name')
+            Table\Column::make('name')
                 ->clickToEdit()
                 ->truncate(50),
 
-            Column::make('description')
+            Table\Column::make('description')
                 ->truncate(80),
 
-            Column::make('created_at')
+            Table\Column::make('created_at')
                 ->header('Created')
                 ->date(),
         ];

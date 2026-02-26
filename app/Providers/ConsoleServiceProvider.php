@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Modules\Bread\Commands\CreateResourceStub;
+use Spark\Console\Commands;
 use Spark\Foundation\Providers\ServiceProvider;
 
 /**
@@ -13,11 +15,7 @@ class ConsoleServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        // i am registering services
-    }
-
-    public function boot(): void
-    {
-        // i am bootstrapping services
+        $this->app->make(Commands::class)
+            ->addCommand('make:bread', CreateResourceStub::class, 'Create a new BREAD resource');
     }
 }

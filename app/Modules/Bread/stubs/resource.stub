@@ -1,0 +1,53 @@
+<?php
+
+namespace {{ namespace }};
+
+use App\Models\{{ model }};
+use App\Modules\Bread\Form;
+use App\Modules\Bread\Resource;
+use App\Modules\Bread\Table;
+
+/**
+ * {{ model }} BREAD Resource
+ *
+ * This is the ONLY file you need to create per CRUD entity.
+ * Everything else (controller, frontend page) is handled automatically.
+ */
+class {{ class }} extends Resource
+{
+    // ─── Core ───────────────────────────────────────────────────────────
+
+    protected static string $model = {{ model }}::class;
+    protected static string $name = '{{ name::singular }}';
+    protected static string $slug = '{{ slug }}';
+    protected static null|string $title = '{{ name::plural }}';
+
+    // ─── Form Fields ────────────────────────────────────────────────────
+
+    public static function fields(): array
+    {
+        return [
+            Form\TextInput::make('name')
+                ->label('Name')
+                ->required()
+                ->maxLength(100)
+                ->placeholder('Enter {{ name::singular::lower }} name')
+                ->columnSpan(2),
+        ];
+    }
+
+    // ─── Table Columns ──────────────────────────────────────────────────
+
+    public static function columns(): array
+    {
+        return [
+            Table\Column::make('name')
+                ->clickToEdit()
+                ->truncate(50),
+
+            Table\Column::make('created_at')
+                ->header('Created')
+                ->date(),
+        ];
+    }
+}
