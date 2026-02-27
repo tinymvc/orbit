@@ -9,7 +9,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
 import type { Row } from "@tanstack/react-table";
 import { Link, usePage, router } from "@inertiajs/react";
 import { Ban, Check, KeyRound, MailCheck, ShieldUser } from "lucide-react";
@@ -22,6 +21,7 @@ import {
 import { headline } from "@/lib/utils";
 
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import { Combobox } from "@/components/combobox";
 
 // ─── Type definitions ───────────────────────────────────────────────────────
 
@@ -63,69 +63,13 @@ interface ColumnsCallbackParams {
   can: { edit: boolean; delete: boolean; create: boolean };
 }
 
-interface UserRolesSelectorProps {
-  selectedRoles: number[];
-  onChange: (roles: number[]) => void;
-  error?: string;
-}
-
-// ─── User Roles Selector ─────────────────────────────────────────────────────
-
-const UserRolesSelector = React.memo<UserRolesSelectorProps>(
-  ({ selectedRoles, onChange, error }) => {
-    const { props } = usePage<{ roles: Role[] }>();
-    const availableRoles: Role[] = props.roles || [];
-
-    const handleToggle = (roleId: number) => {
-      const next = selectedRoles.includes(roleId)
-        ? selectedRoles.filter((id) => id !== roleId)
-        : [...selectedRoles, roleId];
-      onChange(next);
-    };
-
-    return (
-      <div className="space-y-2">
-        <Label className="block mb-2">
-          Roles <sup className="text-destructive">*</sup>
-        </Label>
-        {error && <p className="text-xs text-destructive">{error}</p>}
-        {availableRoles.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            No roles available. Please{" "}
-            <a href="/admin/roles" className="text-primary underline">
-              create a role
-            </a>{" "}
-            first.
-          </p>
-        ) : (
-          <div className="rounded-lg border bg-card p-3 space-y-3">
-            {availableRoles.map((role) => (
-              <div key={role.id} className="flex items-center gap-2">
-                <Checkbox
-                  id={`role-${role.id}`}
-                  checked={selectedRoles.includes(role.id)}
-                  onCheckedChange={() => handleToggle(role.id)}
-                />
-                <Label
-                  htmlFor={`role-${role.id}`}
-                  className="text-sm font-normal cursor-pointer"
-                >
-                  {role.name}
-                </Label>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    );
-  },
-);
-
 // ─── Memoized form fields component ─────────────────────────────────────────
 
 const FormFields = React.memo<FormFieldsProps>(
   ({ formData, isEdit, handleChange, formErrors }) => {
     const fd = formData as unknown as UserFormData;
+
+    const roles: Role[] = usePage<{ roles: Role[] }>().props.roles || [];
 
     return (
       <div className="space-y-4 pb-4">
@@ -240,11 +184,24 @@ const FormFields = React.memo<FormFieldsProps>(
             </p>
           )}
         </div>
-        <UserRolesSelector
-          selectedRoles={fd.roles || []}
-          onChange={(roles) => handleChange("roles", roles)}
-          error={formErrors.roles}
-        />
+        <div className="space-y-2">
+          <Label htmlFor="roles" className="block mb-2">
+            Roles <sup className="text-destructive">*</sup>
+          </Label>
+          <Combobox
+            multiple={true}
+            value={(fd.roles || []).map((role) => role.toString()) as string[]}
+            onChange={(roles) => handleChange("roles", roles)}
+            options={(roles as Role[]).map((role) => ({
+              value: role.id.toString(),
+              label: role.name,
+            }))}
+            placeholder="Select roles"
+          />
+          {formErrors.roles && (
+            <p className="text-xs text-destructive">{formErrors.roles}</p>
+          )}
+        </div>
       </div>
     );
   },

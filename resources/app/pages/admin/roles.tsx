@@ -33,6 +33,7 @@ interface PrivilegesBoxProps {
 
 interface FormFieldsProps {
   formData: Record<string, unknown>;
+  isEdit: boolean;
   handleChange: (field: string, value: unknown) => void;
   formErrors: Record<string, string>;
 }
@@ -390,7 +391,7 @@ const usePrivilegeLabel = () => {
 // ─── Memoized form fields component ─────────────────────────────────────────
 
 const FormFields = React.memo<FormFieldsProps>(
-  ({ formData, handleChange, formErrors }) => {
+  ({ formData, isEdit, handleChange, formErrors }) => {
     const fd = formData as unknown as RoleFormData;
 
     return (
@@ -402,7 +403,10 @@ const FormFields = React.memo<FormFieldsProps>(
           <Input
             id="name"
             value={fd.name}
-            onChange={(e) => handleChange("name", e.target.value)}
+            onChange={(e) => {
+              handleChange("name", e.target.value);
+              !isEdit && handleChange("slug", toSlug(e.target.value));
+            }}
             placeholder="Enter name"
             maxLength={100}
             required
@@ -413,7 +417,7 @@ const FormFields = React.memo<FormFieldsProps>(
         </div>
         <div className="space-y-2">
           <Label htmlFor="slug" className="block mb-2">
-            Slug <sup className="text-destructive">*</sup>
+            Slug
           </Label>
           <div>
             <Input
@@ -422,7 +426,6 @@ const FormFields = React.memo<FormFieldsProps>(
               onChange={(e) => handleChange("slug", e.target.value)}
               placeholder="Enter slug"
               maxLength={100}
-              required
             />
             <span className="text-xs text-muted-foreground">
               Auto generated from name if left empty. Must be unique.
@@ -549,7 +552,10 @@ const config: BreadConfig = {
     slug: role.slug || toSlug((role.name as string) || ""),
     privileges: role.privileges || [],
   }),
-  submitCallback: (formData) => formData,
+  submitCallback: (formData) => ({
+    ...formData,
+    slug: formData.slug || toSlug(formData.name as string),
+  }),
 };
 
 // ─── Page Component ─────────────────────────────────────────────────────────

@@ -100,7 +100,7 @@ class User extends Model
         return false;
     }
 
-    public function addRole(string|array $role): void
+    public function assignRole(string|array $role): void
     {
         $role = is_array($role) ? $role : func_get_args();
 
@@ -108,6 +108,16 @@ class User extends Model
             ->pluck('id');
 
         $this->roles()->sync($roleIds, detaching: false);
+    }
+
+    public function removeRole(string|array $role): void
+    {
+        $role = is_array($role) ? $role : func_get_args();
+
+        $roleIds = Role::whereIn('slug', $role)
+            ->pluck('id');
+
+        $this->roles()->detach($roleIds);
     }
 
     public function can(array|string $permission): bool

@@ -210,7 +210,7 @@ export default function NotificationsPage() {
                   size="sm"
                   onClick={() => postAction({ action: "mark-all-read" })}
                 >
-                  <CheckCheck className="mr-2 h-4 w-4" />
+                  <CheckCheck className="size-4" />
                   Mark all read
                 </Button>
               )}
@@ -221,7 +221,7 @@ export default function NotificationsPage() {
                   className="text-destructive hover:text-destructive"
                   onClick={() => postAction({ action: "clear" })}
                 >
-                  <Trash2 className="mr-2 h-4 w-4" />
+                  <Trash2 className="size-4" />
                   Clear all
                 </Button>
               )}
