@@ -17,5 +17,7 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        // Set the default timezone for the application
+        date_default_timezone_set(env('app.timezone', 'UTC'));
     }
 }

@@ -16,11 +16,12 @@ class RolesController extends Controller
             ->when(
                 $request->has('search'),
                 fn($query) => $query->like('name', '%' . $request->input('search') . '%')
-            )
-            ->paginate($request->input('per_page', 10));
+            );
 
         return inertia('admin/roles', [
-            'roles' => $roles,
+            'roles' => fn() => $roles->paginate(
+                $request->input('per_page', 10)
+            ),
             'privileges' => Props::once(privileges_list(...))
         ]);
     }

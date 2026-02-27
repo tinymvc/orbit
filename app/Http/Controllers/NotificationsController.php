@@ -16,11 +16,12 @@ class NotificationsController extends Controller
 
         // ─── GET – return notifications for the current user ─────────────
         $notifications = Notification::where('user_id', user('id'))
-            ->latest('id')
-            ->paginate($request->input('per_page', 20));
+            ->latest('id');
 
         return inertia('admin/notifications', [
-            'notifications' => $notifications,
+            'notifications' => fn() => $notifications->paginate(
+                $request->input('per_page', 20)
+            ),
         ]);
     }
 

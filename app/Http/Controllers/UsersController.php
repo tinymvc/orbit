@@ -32,12 +32,13 @@ class UsersController extends Controller
                 fn($query) => $query->whereHas('roles', function ($q) use ($request) {
                     $q->where('roles.id', $request->input('role'));
                 })
-            )
-            ->paginate($request->input('per_page', 10));
+            );
 
         return inertia('admin/users', [
-            'users' => $users,
-            'roles' => Role::all(['id', 'name']),
+            'users' => fn() => $users->paginate(
+                $request->input('per_page', 10)
+            ),
+            'roles' => fn() => Role::all(['id', 'name']),
         ]);
     }
 

@@ -54,8 +54,7 @@ class OrbitServiceProvider extends ServiceProvider
                     Notification::where('user_id', user('id'))
                         ->latest('id')
                         ->limit(20)
-                        ->get()
-                        ->toArray(...)
+                        ->all(...)
                 ),
             ]);
         }
