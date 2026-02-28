@@ -7,7 +7,7 @@
 <h1 align="center">Orbit — TinyMVC Dashboard Starter Kit</h1>
 
 <p align="center">
-  <strong>A lightweight, fast and flexible admin dashboard built on TinyMVC + Inertia.js + React + Tailwind CSS</strong>
+  <strong>A lightweight, fast and flexible admin dashboard built on TinyMVC + Inertia.js + React + Shadcn</strong>
 </p>
 
 <p align="center">

@@ -1,7 +1,7 @@
 {
     "name": "tinymvc/orbit",
     "type": "project",
-    "description": "Orbit is a lightweight, fast and flexible Dashboard Starter Kit built on top of the TinyMVC framework. It provides a solid foundation for building modern web applications with ease.",
+    "description": "A lightweight, fast and flexible admin dashboard built on TinyMVC + Inertia.js + React + Shadcn.",
     "keywords": ["shahinmoyshan", "tinymvc", "orbit", "dashboard", "admin panel", "starter kit", "php", "web development"],
     "license": "MIT",
     "require": {
