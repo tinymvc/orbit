@@ -67,4 +67,5 @@ Route::group(function () {
     ->middleware('auth')
     ->prefix('admin');
 
-Route::get('/', fn() => dd('Hello World'));
+Route::view('/', 'welcome')
+    ->name('home');
