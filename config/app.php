@@ -1,6 +1,6 @@
 <?php
 
 return [
-    'name' => 'Inertia Php', // Application name
+    'name' => 'Orbit', // Application name
     'timezone' => 'UTC', // Application timezone
 ];

@@ -1,4 +1,4 @@
-import { Eclipse } from "lucide-react";
+// import { Eclipse } from "lucide-react";
 
 export const sidebarConfig = {
   collapsible: "icon", // offcanvas | icon | none
@@ -8,6 +8,6 @@ export const sidebarConfig = {
 export const siteIdentity = {
   home_url: "/admin",
   name: "Inertia Starter",
-  icon: Eclipse,
-  image: null,
+  // icon: Eclipse,
+  image: "/favicon.ico",
 };
