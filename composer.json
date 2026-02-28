@@ -1,8 +1,8 @@
 {
-    "name": "tinymvc/skeleton",
+    "name": "tinymvc/orbit",
     "type": "project",
-    "description": "TinyMvc is a minimalist PHP framework to craft blazing-fast RESTful APIs and modern web apps.",
-    "keywords": ["shahinmoyshan", "tinymvc", "tinycore", "mvc", "web framework", "php framework", "framework"],
+    "description": "Orbit is a lightweight, fast and flexible Dashboard Starter Kit built on top of the TinyMVC framework. It provides a solid foundation for building modern web applications with ease.",
+    "keywords": ["shahinmoyshan", "tinymvc", "orbit", "dashboard", "admin panel", "starter kit", "php", "web development"],
     "license": "MIT",
     "require": {
         "php": ">=8.2",
@@ -36,7 +36,9 @@
             "@php -r \"file_exists('env.php') || copy('env.example.php', 'env.php');\""
         ],
         "post-create-project-cmd": [
-            "@php spark key:generate"
+            "@php spark key:generate",
+            "@php spark storage:link",
+            "@php spark migrate --seed"
         ]
     },
     "config": {

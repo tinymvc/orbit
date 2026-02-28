@@ -13,11 +13,11 @@ return new class {
         ]);
 
         $user = User::firstOrCreate(
-            attributes: ['email' => 'shahin.moyshan2@gmail.com'],
+            attributes: ['email' => 'admin@hotmail.com'],
             values: [
-                'username' => 'shahin',
-                'first_name' => 'Shahin',
-                'last_name' => 'Moyshan',
+                'username' => 'admin',
+                'first_name' => 'John',
+                'last_name' => 'Doe',
                 'password' => bcrypt('password'),
                 'status' => User::STATUS_ACTIVE,
             ]

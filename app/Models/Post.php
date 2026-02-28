@@ -6,6 +6,11 @@ use Spark\Database\Model;
 
 class Post extends Model
 {
+    public const STATUS_DRAFT = 'draft';
+    public const STATUS_PUBLISHED = 'published';
+    public const STATUS_ARCHIVED = 'archived';
+    public const STATUS_SCHEDULED = 'scheduled';
+
     public function user(): \Spark\Database\Relation\BelongsTo
     {
         return $this->belongsTo(User::class);
