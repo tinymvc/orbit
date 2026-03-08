@@ -129,7 +129,7 @@ composer install
 Set up the environment:
 
 ```bash
-cp env.example.php env.php
+cp .env.example .env
 ```
 
 Generate application key, create storage symlink, and run migrations with seed data:
@@ -151,7 +151,7 @@ npm run dev      # Start Vite dev server (development)
 
 ## Configuration
 
-The main configuration file is `env.php` in the project root. Key settings:
+The main configuration file is `.env` in the project root. Key settings:
 
 ```php
 return [
@@ -193,7 +193,7 @@ Build the frontend assets:
 npm run build
 ```
 
-Set `debug` to `false` in `env.php`, configure your `root_url`, and point your web server (Apache/Nginx) to the `public/` directory.
+Set `debug` to `false` in `.env`, configure your `root_url`, and point your web server (Apache/Nginx) to the `public/` directory.
 
 ---
 
@@ -237,7 +237,7 @@ orbit/
 ├── routes/
 │   └── web.php                   # All route definitions
 ├── storage/                      # Logs, cache, uploads
-├── env.php                       # Environment configuration
+├── .env                          # Environment configuration
 ├── vite.config.ts                # Vite build configuration
 └── spark                         # CLI tool (like artisan)
 ```
