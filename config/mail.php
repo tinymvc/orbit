@@ -1,20 +1,20 @@
 <?php
 
 return [
-    'mailer' => [
-        'address' => 'shahin.moyshan2@gmail.com',
-        'name' => 'Shahin Moyshan'
+    'from' => [
+        'address' => env('MAIL_FROM_ADDRESS', 'hello@example.com'),
+        'name' => env('MAIL_FROM_NAME', 'Spark')
     ],
     'reply' => [
-        'address' => 'shahin.moyshan2@gmail.com',
-        'name' => 'Shahin Moyshan'
+        'address' => env('MAIL_REPLY_ADDRESS', 'reply@example.com'),
+        'name' => env('MAIL_REPLY_NAME', 'Spark')
     ],
     'smtp' => [
-        'enabled' => true,
-        'host' => 'sandbox.smtp.mailtrap.io',
-        'port' => 587,
-        'username' => 'c4bc6300bb3d1b',
-        'password' => 'd090ff400c008b',
-        'encryption' => 'tls',
-    ]
+        'enabled' => env('MAIL_SMTP', false),
+        'host' => env('MAIL_HOST', '127.0.0.1'),
+        'port' => env('MAIL_PORT', 2525),
+        'username' => env('MAIL_USERNAME', null),
+        'password' => env('MAIL_PASSWORD', null),
+        'encryption' => env('MAIL_ENCRYPTION', 'tls'),
+    ],
 ];
