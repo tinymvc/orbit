@@ -153,19 +153,35 @@ npm run dev      # Start Vite dev server (development)
 
 The main configuration file is `.env` in the project root. Key settings:
 
-```php
-return [
-    'debug' => true,                        // Set to false in production
-    'root_url' => 'http://localhost:8080',   // Your application URL
-    'app_key' => '{APP_KEY}',               // Auto-generated via php spark key:generate
-    'database' => require __DIR__ . '/config/database.php',
-    'mail' => require __DIR__ . '/config/mail.php',
-];
-```
+```bash
+APP_NAME=Spark
+APP_KEY=
+APP_DEBUG=true
+APP_URL=http://localhost:8080
 
-- **Database** — Configure in `config/database.php` (SQLite by default)
-- **Mail** — Configure SMTP settings in `config/mail.php`
-- **Permissions** — Define available permissions in `config/privileges.php`
+APP_LOCALE=en
+APP_TIMEZONE=UTC
+
+DB_CONNECTION=sqlite
+# DB_HOST=127.0.0.1
+# DB_PORT=3306
+# DB_DATABASE=spark
+# DB_USERNAME=root
+# DB_PASSWORD=
+
+MAIL_SMTP=false
+# MAIL_HOST=127.0.0.1
+# MAIL_PORT=2525
+# MAIL_USERNAME=null
+# MAIL_PASSWORD=null
+# MAIL_ENCRYPTION=tls
+
+MAIL_FROM_ADDRESS="hello@example.com"
+MAIL_FROM_NAME="${APP_NAME}"
+
+MAIL_REPLY_ADDRESS="reply@example.com"
+MAIL_REPLY_NAME="${APP_NAME}"
+```
 
 ---
 
