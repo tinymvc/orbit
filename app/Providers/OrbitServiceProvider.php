@@ -4,8 +4,8 @@ namespace App\Providers;
 
 use App\Models\Notification;
 use Inertia\Facades\Inertia;
-use Inertia\Facades\Props;
-use Spark\Facades\Auth;
+use App\Models\User;
+use Spark\Http\Auth;
 use Spark\Facades\Gate;
 use Spark\Foundation\Providers\ServiceProvider;
 use Spark\Http\Validator;
@@ -20,44 +20,35 @@ class OrbitServiceProvider extends ServiceProvider
     public function register(): void
     {
         // configure auth to use caching
-        Auth::configure([
+        $this->app->singleton(Auth::class, fn() => new Auth(User::class, [
             'cache_enabled' => true,
             'use_remember_token' => true,
             'cache_expire' => '5 minutes',
             'login_route' => 'admin.login',
             'redirect_route' => 'admin.dashboard',
-        ]);
+        ]));
     }
 
     public function boot(): void
     {
         // Sharing the application name with all Inertia views
         Inertia::share([
-            'app' => Props::once(fn() => [
+            'app' => Inertia::once(fn() => [
                 'name' => config('app.name', 'Inertia Php'),
                 'timezone' => config('app.timezone', 'UTC'),
-                'locale' => config('lang', 'en'),
+                'locale' => config('app.lang', 'en'),
             ]),
         ]);
 
-        // Share notification data for the logged-in user
-        if (is_logged()) {
-            Inertia::share([
-                // Always evaluated — badge count on every page
-                'notifications' => Props::always(fn() => [
-                    'unreadCount' => Notification::where('user_id', user('id'))
-                        ->whereNull('read_at')
-                        ->count(),
-                ]),
-                // Lazy — only evaluated when explicitly requested via router.reload({ only: ['notificationItems'] })
-                'notificationItems' => Props::lazy(
-                    Notification::where('user_id', user('id'))
-                        ->latest('id')
-                        ->limit(20)
-                        ->all(...)
-                ),
-            ]);
-        }
+        // Resolve the current user when rendering, including after login/logout.
+        Inertia::share([
+            'auth' => Inertia::always(fn() => ['user' => user()]),
+            'notifications' => Inertia::always(fn() => [
+                'unreadCount' => is_logged()
+                    ? Notification::where('user_id', user('id'))->whereNull('read_at')->count()
+                    : 0,
+            ]),
+        ]);
 
         // defining a gate for checking user permissions based on privileges
         Gate::define(

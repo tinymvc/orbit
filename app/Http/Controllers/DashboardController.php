@@ -2,14 +2,14 @@
 
 namespace App\Http\Controllers;
 
-use App\Modules\Dashboard\Dashboard;
-use App\Modules\Dashboard\Stats;
-use App\Modules\Dashboard\Charts\AreaChart;
-use App\Modules\Dashboard\Charts\BarChart;
-use App\Modules\Dashboard\Charts\LineChart;
-use App\Modules\Dashboard\Charts\PieChart;
-use App\Modules\Dashboard\Charts\RadarChart;
-use App\Modules\Dashboard\Charts\RadialChart;
+use App\Services\Dashboard\Dashboard;
+use App\Services\Dashboard\Stats;
+use App\Services\Dashboard\Charts\AreaChart;
+use App\Services\Dashboard\Charts\BarChart;
+use App\Services\Dashboard\Charts\LineChart;
+use App\Services\Dashboard\Charts\PieChart;
+use App\Services\Dashboard\Charts\RadarChart;
+use App\Services\Dashboard\Charts\RadialChart;
 use Spark\Http\Request;
 
 class DashboardController extends Controller

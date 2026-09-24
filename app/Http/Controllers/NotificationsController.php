@@ -4,72 +4,83 @@ namespace App\Http\Controllers;
 
 use App\Models\Notification;
 use Spark\Http\Request;
+use function array_slice;
+use function count;
+use function in_array;
 
 class NotificationsController extends Controller
 {
-    public function __invoke(Request $request)
-    {
-        // ─── POST actions ────────────────────────────────────────────────
-        if ($request->isPost()) {
-            return $this->handleAction($request);
-        }
+    private const PAGE_SIZE = 20;
 
-        // ─── GET – return notifications for the current user ─────────────
-        $notifications = Notification::where('user_id', user('id'))
+    public function index(Request $request)
+    {
+        $input = $request->validate([
+            'before' => 'nullable|integer|min:1|regex:/^[1-9][0-9]*$/'
+        ]);
+
+        $query = Notification::where('user_id', user('id'))
             ->latest('id');
 
-        return inertia('admin/notifications', [
-            'notifications' => fn() => $notifications->paginate(
-                $request->input('per_page', 20)
-            ),
+        if ($input['before'] !== null) {
+            $query->where('id', '<', $input['before']);
+        }
+
+        // One extra row tells us whether another page exists without a count query.
+        $rows = $query->limit(self::PAGE_SIZE + 1)->all();
+        $hasMore = count($rows) > self::PAGE_SIZE;
+        $items = array_slice($rows, 0, self::PAGE_SIZE);
+
+        return json([
+            'items' => $items,
+            'nextCursor' => $hasMore ? end($items)->id : null,
+            'unreadCount' => $this->unreadCount(),
         ]);
     }
 
-    private function handleAction(Request $request)
+    public function __invoke(Request $request)
     {
-        $action = $request->input('action');
+        $input = $request->validate([
+            'action' => 'required|string|in:mark-read,mark-all-read,remove,clear',
+        ]);
+
+        $action = $input['action'];
         $userId = user('id');
+        $readAt = null;
 
-        return match ($action) {
-            'mark-read' => $this->markRead($request->input('id'), $userId),
-            'mark-all-read' => $this->markAllRead($userId),
-            'remove' => $this->remove($request->input('id'), $userId),
-            'clear' => $this->clear($userId),
-            default => inertia()->back()->with('error', 'Unknown action.'),
-        };
+        if (in_array($action, ['mark-read', 'remove'], true)) {
+            $id = $request->validate(['id' => 'required|integer|min:1|regex:/^[1-9][0-9]*$/'])
+                ->number('id');
+
+            $notification = Notification::where('user_id', $userId)
+                ->where('id', $id)
+                ->firstOrFail();
+
+            $query = Notification::where('user_id', $userId)
+                ->where('id', $id);
+
+            if ($action === 'mark-read') {
+                // Preserve the first read timestamp, including repeated clicks.
+                $readAt = $notification->read_at ?: now()->toDateTimeString();
+                $query->whereNull('read_at')->update(['read_at' => $readAt]);
+            } else {
+                $query->delete();
+            }
+        } elseif ($action === 'mark-all-read') {
+            $readAt = now()->toDateTimeString();
+            Notification::where('user_id', $userId)
+                ->whereNull('read_at')
+                ->update(['read_at' => $readAt]);
+        } else {
+            Notification::where('user_id', $userId)->delete();
+        }
+
+        return $request->expectsJson()
+            ? json(['unreadCount' => $this->unreadCount(), 'readAt' => $readAt])
+            : inertia()->back();
     }
 
-    private function markRead(int $id, int $userId)
+    private function unreadCount(): int
     {
-        Notification::where('id', $id)
-            ->where('user_id', $userId)
-            ->update(['read_at' => now()]);
-
-        return inertia()->back();
-    }
-
-    private function markAllRead(int $userId)
-    {
-        Notification::where('user_id', $userId)
-            ->whereNull('read_at')
-            ->update(['read_at' => now()]);
-
-        return inertia()->back();
-    }
-
-    private function remove(int $id, int $userId)
-    {
-        Notification::where('id', $id)
-            ->where('user_id', $userId)
-            ->delete();
-
-        return inertia()->back();
-    }
-
-    private function clear(int $userId)
-    {
-        Notification::where('user_id', $userId)->delete();
-
-        return inertia()->back();
+        return Notification::where('user_id', user('id'))->whereNull('read_at')->count();
     }
 }

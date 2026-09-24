@@ -51,7 +51,7 @@ export const useApp = (): AppContextValue => {
 
 // Inner provider that uses usePage (must be inside Inertia's App component)
 const AppContextProvider = ({ children }: { children: ReactNode }) => {
-  const { props } = usePage<{ app: AppConfig; auth: { user: User | null } }>();
+  const { props, flash } = usePage<{ app: AppConfig; auth: { user: User | null } }>();
 
   const [alert, setAlert] = useState<AlertState>({
     open: false,
@@ -65,20 +65,14 @@ const AppContextProvider = ({ children }: { children: ReactNode }) => {
   });
 
   useEffect(() => {
-    const flash = props.flash as {
-      info?: string;
-      success?: string;
-      error?: string;
-    };
-
-    if (flash?.success) {
+    if (typeof flash?.success === "string") {
       toast.success(flash.success);
-    } else if (flash?.error) {
+    } else if (typeof flash?.error === "string") {
       toast.error(flash.error);
-    } else if (flash?.info) {
+    } else if (typeof flash?.info === "string") {
       toast.info(flash.info);
     }
-  }, [props.flash]);
+  }, [flash]);
 
   const isAuthenticated = (): boolean =>
     !!props.auth.user && props.auth.user.id > 0;

@@ -13,6 +13,9 @@ interface PageComponent {
 }
 
 createInertiaApp({
+  defaults: {
+    future: { useScriptElementForInitialPage: true },
+  },
   resolve: async (name) => {
     // Lazy import — each page becomes its own chunk (code splitting)
     const pages = import.meta.glob<PageComponent>("./pages/**/*.tsx");

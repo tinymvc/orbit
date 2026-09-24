@@ -8,11 +8,10 @@ return [
     'name' => env('APP_NAME', 'TinyMVC'), // Application name
     'timezone' => env('APP_TIMEZONE', 'UTC'), // Application timezone
     'lang' => env('APP_LOCALE', 'en'), // Default language
-    'app_url' => env('APP_URL', 'http://localhost:8080'), // Application URL
+    'url' => env('APP_URL', 'http://localhost:8080'), // Application URL
 
     // Directory paths
     'storage_dir' => dirname(__DIR__) . '/storage', // Storage directory
-    'cache_dir' => dirname(__DIR__) . '/storage/cache', // Cache files directory
     'temp_dir' => dirname(__DIR__) . '/storage/temp', // Temporary files directory
     'upload_dir' => dirname(__DIR__) . '/storage/uploads', // Upload directory
     'views_dir' => dirname(__DIR__) . '/resources/views', // Template directory

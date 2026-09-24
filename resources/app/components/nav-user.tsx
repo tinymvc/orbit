@@ -1,4 +1,4 @@
-import { MoreVertical, Bell, UserCircle, LogOut } from "lucide-react";
+import { MoreVertical, UserCircle, LogOut } from "lucide-react";
 
 import { Link, useForm } from "@inertiajs/react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -91,12 +91,6 @@ export function NavUser({ user }: NavUserProps) {
                 <Link href="/admin/profile">
                   <UserCircle />
                   Profile
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link href="/admin/notifications">
-                  <Bell />
-                  Notifications
                 </Link>
               </DropdownMenuItem>
             </DropdownMenuGroup>

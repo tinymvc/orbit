@@ -234,7 +234,7 @@ orbit/
 │   │   ├── Middlewares/          # HTTP middleware (auth, CSRF, CORS, etc.)
 │   │   └── Resources/            # BREAD resource definitions ← your CRUD lives here
 │   ├── Models/                   # Eloquent-style models
-│   ├── Modules/
+│   ├── Services/
 │   │   ├── Bread/                # BREAD engine (Resource, ResourceController, Form fields, Table columns)
 │   │   └── Dashboard/            # Dashboard engine (Stats, Charts)
 │   └── Providers/                # Service providers
@@ -266,7 +266,7 @@ The BREAD (Browse, Read, Edit, Add, Delete) module is the heart of Orbit's admin
 
 ### How It Works
 
-1. You create a **Resource class** (extends `App\Modules\Bread\Resource`)
+1. You create a **Resource class** (extends `App\Services\Bread\Resource`)
 2. Define your **form fields**, **table columns**, **filters**, and **bulk actions**
 3. Register the route in `routes/web.php` with one line
 4. Add a menu entry in the React sidebar config
@@ -300,9 +300,9 @@ Every resource has a set of static properties that control its behavior:
 namespace App\Http\Resources;
 
 use App\Models\Product;
-use App\Modules\Bread\Form;
-use App\Modules\Bread\Resource;
-use App\Modules\Bread\Table;
+use App\Services\Bread\Form;
+use App\Services\Bread\Resource;
+use App\Services\Bread\Table;
 
 class ProductsResource extends Resource
 {
@@ -818,7 +818,7 @@ In `routes/web.php`, register your resource with a single line inside the authen
 
 ```php
 use App\Http\Resources\ProductsResource;
-use App\Modules\Bread\ResourceController;
+use App\Services\Bread\ResourceController;
 
 Route::group(function () {
     // ... existing routes ...
@@ -851,9 +851,9 @@ namespace App\Http\Resources;
 
 use App\Models\Category;
 use App\Models\Post;
-use App\Modules\Bread\Form;
-use App\Modules\Bread\Resource;
-use App\Modules\Bread\Table;
+use App\Services\Bread\Form;
+use App\Services\Bread\Resource;
+use App\Services\Bread\Table;
 
 class PostsResource extends Resource
 {
@@ -993,7 +993,7 @@ The Dashboard module provides a fluent PHP API for building analytics dashboards
 Stats cards display key metrics at the top of the dashboard:
 
 ```php
-use App\Modules\Dashboard\Stats;
+use App\Services\Dashboard\Stats;
 
 Stats::make('Total Revenue')
     ->value('$1,250.00')       // Display value (formatted string)
@@ -1019,7 +1019,7 @@ Six chart types are available, all sharing a common fluent API:
 #### Common Chart API
 
 ```php
-use App\Modules\Dashboard\Charts\BarChart;
+use App\Services\Dashboard\Charts\BarChart;
 
 BarChart::make('Monthly Revenue')
     ->description('Revenue vs Expenses')     // Subtitle
@@ -1090,11 +1090,11 @@ The date range is sent as `?from=YYYY-MM-DD&to=YYYY-MM-DD` query parameters to t
 
 namespace App\Http\Controllers;
 
-use App\Modules\Dashboard\Dashboard;
-use App\Modules\Dashboard\Stats;
-use App\Modules\Dashboard\Charts\AreaChart;
-use App\Modules\Dashboard\Charts\BarChart;
-use App\Modules\Dashboard\Charts\PieChart;
+use App\Services\Dashboard\Dashboard;
+use App\Services\Dashboard\Stats;
+use App\Services\Dashboard\Charts\AreaChart;
+use App\Services\Dashboard\Charts\BarChart;
+use App\Services\Dashboard\Charts\PieChart;
 use Spark\Http\Request;
 
 class DashboardController extends Controller
@@ -1334,6 +1334,51 @@ Here's the step-by-step to add a new CRUD resource (e.g., **Products**):
 7. **Add the menu item** — Add an entry in `resources/app/config/menu.ts`
 8. **Run migrations** — `php spark migrate`
 9. **Done!** — Visit `/admin/products`
+
+---
+
+## Testing
+
+Run the PHP regression suite and frontend checks:
+
+```bash
+composer install
+npm install
+php test
+npm test
+npm run typecheck
+npm run build
+```
+
+Use `php test --filter=BreadTest` or `php test --testsuite=Unit` for a focused run.
+Feature tests use in-memory SQLite and a separate temporary storage directory for
+each test; they do not use the application's database, `.env`, or compiled config.
+The multipart upload test launches a temporary PHP server on loopback and needs
+`ext-curl`, `proc_open`, and permission to open a local port. All server processes,
+generated test resources, and temporary files are cleaned up.
+
+Coverage includes authentication and CSRF, permissions, users and roles, profile
+updates, notification pagination/read actions/ownership, BREAD CRUD/search/filtering/relationships,
+file retention and uploads, resource generation, dashboard and form schemas,
+default seeders, CORS, and the configured SQLite cache/locks/queue and local disks.
+External SMTP, Redis, S3, and MySQL/PostgreSQL integrations need separate testing
+against those services.
+
+Notifications are available in the header drawer. The authenticated feed returns
+20 items per request, newest first, with an ID cursor for infinite scrolling.
+Opening a notification's View action marks it read before navigating. Badge counts
+include all unread notifications, including older pages. The drawer supports
+retrying failed loads, individual read/remove actions, marking all read, and
+clearing the current user's notifications. There is no standalone notifications
+page. `npm test` covers the feed client and read-before-navigation behavior.
+
+BREAD and Dashboard now live under `app/Services`, with namespaces
+`App\Services\Bread` and `App\Services\Dashboard`. After upgrading an existing
+checkout, run `composer dump-autoload` and `php spark config:clear` to refresh
+class maps and cached configuration. Orbit retains its redirecting auth/guest
+middleware. The Inertia integration uses the adapter's `Inertia::once`,
+`Inertia::always`, and `Inertia::optional` APIs, script-based initial page data,
+and `page.flash`; its React client requires version 2.3.28 or later in the 2.x line.
 
 ---
 

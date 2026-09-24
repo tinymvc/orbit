@@ -3,9 +3,9 @@
 namespace App\Http\Resources;
 
 use App\Models\Category;
-use App\Modules\Bread\Form;
-use App\Modules\Bread\Resource;
-use App\Modules\Bread\Table;
+use App\Services\Bread\Form;
+use App\Services\Bread\Resource;
+use App\Services\Bread\Table;
 
 /**
  * Categories BREAD Resource
@@ -23,7 +23,7 @@ class CategoriesResource extends Resource
     protected static null|string $title = 'Categories';
     protected static null|string $description = 'Manage blog categories and their relationships.';
 
-    protected static array $searchable = ['title', 'slug', 'description'];
+    protected static array $searchable = ['name', 'slug', 'description'];
 
     // ─── Permissions ────────────────────────────────────────────────────
 

@@ -2,7 +2,7 @@
 
 namespace App\Providers;
 
-use App\Modules\Bread\Commands\CreateResourceStub;
+use App\Services\Bread\Commands\CreateResourceStub;
 use Spark\Console\Commands;
 use Spark\Foundation\Providers\ServiceProvider;
 

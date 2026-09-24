@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Role;
-use Inertia\Facades\Props;
+use Inertia\Facades\Inertia;
 use Spark\Http\Request;
 
 class RolesController extends Controller
@@ -22,7 +22,7 @@ class RolesController extends Controller
             'roles' => fn() => $roles->paginate(
                 $request->input('per_page', 10)
             ),
-            'privileges' => Props::once(privileges_list(...))
+            'privileges' => Inertia::once(privileges_list(...))
         ]);
     }
 

@@ -19,7 +19,7 @@ use App\Http\Resources\{
     CategoriesResource,
     PostsResource
 };
-use App\Modules\Bread\ResourceController;
+use App\Services\Bread\ResourceController;
 use Spark\Facades\Route;
 
 Route::group(function () {
@@ -45,7 +45,10 @@ Route::group(function () {
     Route::get('/', [DashboardController::class, 'overview'])
         ->name('dashboard');
 
-    Route::match(['get', 'post'], '/notifications', NotificationsController::class)
+    Route::get('/notifications/feed', [NotificationsController::class, 'index'])
+        ->name('notifications.feed');
+
+    Route::post('/notifications', NotificationsController::class)
         ->name('notifications');
 
     Route::match(['get', 'post'], '/profile', [AuthController::class, 'profile'])

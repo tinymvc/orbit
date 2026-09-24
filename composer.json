@@ -6,8 +6,8 @@
     "license": "MIT",
     "require": {
         "php": ">=8.2",
-        "tinymvc/tinycore": "^2.3",
-        "tinymvc/inertia-php": "^1.0",
+        "tinymvc/tinycore": "^3.3",
+        "tinymvc/inertia-php": "^2.0",
         "phpmailer/phpmailer": "^7.0",
         "voku/portable-ascii": "^2.0"
     },
@@ -19,7 +19,7 @@
     ],
     "autoload": {
         "psr-4": {
-            "App\\": "./app"
+            "App\\": "app/"
         },
         "files": [
             "./bootstrap/helpers.php"
@@ -29,7 +29,12 @@
         "phpmailer/phpmailer": "Required for sending emails (^6.9).",
         "league/commonmark": "Required to use Str::markdown() and Stringable::markdown() (^2.6).",
         "voku/portable-ascii": "Required to use on Str::slug() with non-english strings (^2.0).,",
-        "ramsey/uuid": "Required to use Str::uuid() (^4.7)."
+        "ramsey/uuid": "Required to use Str::uuid() (^4.7).",
+        "ext-curl": "Required for the HTTP client.",
+        "ext-fileinfo": "Required for upload and file MIME detection.",
+        "ext-gd": "Required for image manipulation.",
+        "ext-pdo_sqlite": "Required for the default sqlite cache, lock, and queue drivers.",
+        "ext-redis": "Required for redis cache, lock, and queue drivers."
     },
     "scripts": {
         "post-root-package-install": [
@@ -39,9 +44,24 @@
             "@php spark key:generate",
             "@php spark storage:link",
             "@php spark migrate --seed"
-        ]
+        ],
+        "setup": [
+            "composer install",
+            "@php -r \"file_exists('.env') || copy('.env.example', '.env');\"",
+            "@php spark key:generate",
+            "@php spark storage:link",
+            "@php spark migrate --seed",
+            "npm install",
+            "npm run build"
+        ],
+        "test": "@php test"
     },
     "config": {
         "optimize-autoloader": true
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Tests\\": "tests/"
+        }
     }
 }

@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import {
   Bell,
   BellOff,
@@ -14,6 +14,8 @@ import {
   Mail,
   AlertTriangle,
   CheckCircle,
+  CheckCheck,
+  Trash2,
   Heart,
   Star,
   Tag,
@@ -31,21 +33,20 @@ import {
   SheetContent,
   SheetHeader,
   SheetTitle,
+  SheetDescription,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { Link, router, usePage } from "@inertiajs/react";
+import { router, usePage } from "@inertiajs/react";
 
-// ─── Types ──────────────────────────────────────────────────────────────────
-
-interface Notification {
-  id: number;
-  title: string;
-  description: string | null;
-  slug: string | null;
-  type: string;
-  read_at: string | null;
-  created_at: string;
-}
+import { toast } from "sonner";
+import {
+  appendNotifications,
+  loadNotifications,
+  openNotification,
+  updateNotification,
+  type Notification,
+  type NotificationAction,
+} from "@/lib/notifications";
 
 interface SharedNotifications {
   unreadCount: number;
@@ -127,147 +128,244 @@ export function Notifications() {
 
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<Notification[]>([]);
-  const [loaded, setLoaded] = useState(false);
+  const [processing, setProcessing] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [nextCursor, setNextCursor] = useState<number | null>(null);
+  const [unreadCount, setUnreadCount] = useState(shared?.unreadCount ?? 0);
+  const [scrollRoot, setScrollRoot] = useState<HTMLDivElement | null>(null);
+  const [sentinel, setSentinel] = useState<HTMLDivElement | null>(null);
+  const request = useRef<AbortController | null>(null);
+  const mutating = useRef(false);
+  const mounted = useRef(true);
 
-  const unreadCount = shared?.unreadCount ?? 0;
+  useEffect(() => {
+    setUnreadCount(shared?.unreadCount ?? 0);
+  }, [shared?.unreadCount]);
 
-  // Fetch notifications via lazy shared prop — no navigation, stays on current page
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      request.current?.abort();
+    };
+  }, []);
+
+  const loadPage = useCallback(async (cursor: number | null) => {
+    if (request.current || mutating.current) return;
+    const controller = new AbortController();
+    request.current = controller;
+    setLoading(true);
+    setError(null);
+    try {
+      const page = await loadNotifications(cursor, controller.signal);
+      if (controller.signal.aborted || !mounted.current) return;
+      setItems((current) =>
+        cursor === null ? page.items : appendNotifications(current, page.items),
+      );
+      setNextCursor(page.nextCursor);
+      setUnreadCount(page.unreadCount);
+    } catch (reason) {
+      if (!controller.signal.aborted && mounted.current) {
+        setError(
+          reason instanceof Error
+            ? reason.message
+            : "Couldn't load notifications. Please try again.",
+        );
+      }
+    } finally {
+      if (request.current === controller) {
+        request.current = null;
+        if (mounted.current) setLoading(false);
+      }
+    }
+  }, []);
+
   const handleOpenChange = useCallback(
     (isOpen: boolean) => {
+      request.current?.abort();
+      request.current = null;
+      setLoading(false);
       setOpen(isOpen);
-      if (isOpen && !loaded) {
-        setLoading(true);
-        router.reload({
-          only: ["notificationItems"],
-          onSuccess: (page) => {
-            const data = (page.props as Record<string, unknown>)
-              .notificationItems as Notification[] | undefined;
-            setItems(data ?? []);
-            setLoaded(true);
-            setLoading(false);
-          },
-          onError: () => setLoading(false),
-        });
+      if (isOpen) {
+        setItems([]);
+        setNextCursor(null);
+        void loadPage(null);
       }
     },
-    [loaded],
+    [loadPage],
   );
 
-  // ─── Actions ────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (
+      !open ||
+      !scrollRoot ||
+      !sentinel ||
+      nextCursor === null ||
+      loading ||
+      processing ||
+      error ||
+      typeof IntersectionObserver === "undefined"
+    )
+      return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry?.isIntersecting) void loadPage(nextCursor);
+      },
+      { root: scrollRoot, rootMargin: "0px 0px 160px 0px" },
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [
+    open,
+    scrollRoot,
+    sentinel,
+    nextCursor,
+    loading,
+    processing,
+    error,
+    loadPage,
+  ]);
 
   const postAction = useCallback(
-    (data: Record<string, unknown>, optimisticUpdate: () => void) => {
-      optimisticUpdate();
-      router.post("/admin/notifications", data as Record<string, string>, {
-        preserveState: true,
-        preserveScroll: true,
-        onError: () => {
-          // Reset loaded state so next open re-fetches
-          setLoaded(false);
-        },
-      });
+    async (action: NotificationAction, id?: number): Promise<boolean> => {
+      if (mutating.current || request.current) return false;
+      mutating.current = true;
+      setProcessing(true);
+      try {
+        const result = await updateNotification(action, id);
+        if (!mounted.current) return false;
+        setUnreadCount(result.unreadCount);
+        setItems((current) => {
+          if (action === "clear") return [];
+          if (action === "remove")
+            return current.filter((notification) => notification.id !== id);
+          return current.map((notification) =>
+            action === "mark-all-read" || notification.id === id
+              ? {
+                  ...notification,
+                  read_at: notification.read_at || result.readAt,
+                }
+              : notification,
+          );
+        });
+        if (action === "clear") {
+          setNextCursor(null);
+          setError(null);
+        }
+        return true;
+      } catch (reason) {
+        if (mounted.current)
+          toast.error(
+            reason instanceof Error
+              ? reason.message
+              : "Couldn't update notifications.",
+          );
+        return false;
+      } finally {
+        mutating.current = false;
+        if (mounted.current) setProcessing(false);
+      }
     },
     [],
   );
 
-  const handleMarkAllAsRead = () => {
-    postAction({ action: "mark-all-read" }, () => {
-      setItems((prev) =>
-        prev.map((n) => ({
-          ...n,
-          read_at: n.read_at || new Date().toISOString(),
-        })),
-      );
-    });
+  const handleView = (notification: Notification) => {
+    if (loading || processing) return;
+    void openNotification(
+      notification,
+      () => postAction("mark-read", notification.id),
+      (url) => {
+        if (!mounted.current) return;
+        const destination = new URL(url, window.location.origin);
+        if (!["http:", "https:"].includes(destination.protocol)) return;
+        handleOpenChange(false);
+        if (destination.origin === window.location.origin) {
+          router.visit(
+            destination.pathname + destination.search + destination.hash,
+          );
+        } else {
+          window.location.assign(destination.href);
+        }
+      },
+    );
   };
 
-  const handleClear = () => {
-    postAction({ action: "clear" }, () => setItems([]));
-  };
-
-  const handleRemove = (id: number) => {
-    postAction({ action: "remove", id }, () => {
-      setItems((prev) => prev.filter((n) => n.id !== id));
-    });
-  };
-
-  const handleMarkRead = (id: number) => {
-    postAction({ action: "mark-read", id }, () => {
-      setItems((prev) =>
-        prev.map((n) =>
-          n.id === id
-            ? { ...n, read_at: n.read_at || new Date().toISOString() }
-            : n,
-        ),
-      );
-    });
-  };
-
-  const localUnreadCount = loaded
-    ? items.filter((n) => !n.read_at).length
-    : unreadCount;
+  const isBusy = loading || processing;
+  const badgeCount = unreadCount > 99 ? "99+" : unreadCount;
 
   return (
     <Sheet open={open} onOpenChange={handleOpenChange}>
       <SheetTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative group h-8 w-8">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="relative h-8 w-8"
+          disabled={processing}
+          aria-label={
+            unreadCount > 0
+              ? `Notifications, ${unreadCount} unread`
+              : "Notifications"
+          }
+        >
           <Bell className="size-5" />
-          {localUnreadCount > 0 && (
-            <span className="absolute animate-pulse group-hover:animate-none top-0 right-0 flex h-4 min-w-3.5 items-center justify-center rounded-full bg-destructive px-1 text-xs font-bold text-white">
-              {localUnreadCount}
+          {unreadCount > 0 && (
+            <span className="absolute top-0 right-0 flex h-4 min-w-3.5 items-center justify-center rounded-full bg-destructive px-1 text-xs font-bold text-white">
+              {badgeCount}
             </span>
           )}
         </Button>
       </SheetTrigger>
       <SheetContent side="right" className="md:max-w-md p-0 gap-0">
-        {/* ─── Header ─────────────────────────────────────────────── */}
-        {(items.length > 0 || loading) && (
-          <SheetHeader className="border-b p-5">
-            <div className="flex items-center justify-between">
-              <SheetTitle className="flex items-center gap-2 text-lg relative">
-                Notifications
-                {localUnreadCount > 0 && (
-                  <span className="absolute -top-0.5 -right-4.5 flex h-4 min-w-3.5 items-center justify-center rounded-full bg-destructive px-1 text-xs font-bold text-white">
-                    {localUnreadCount}
-                  </span>
-                )}
-              </SheetTitle>
-            </div>
-            <div className="flex items-center gap-4 pt-2">
-              {localUnreadCount > 0 && (
+        <SheetHeader className="shrink-0 border-b p-5">
+          <SheetTitle className="flex items-center gap-2 pr-6 text-lg">
+            Notifications
+            {unreadCount > 0 && (
+              <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-xs font-bold text-white">
+                {badgeCount}
+              </span>
+            )}
+          </SheetTitle>
+          <SheetDescription className="sr-only">
+            Your latest notifications. Mark them as read or clear them here.
+          </SheetDescription>
+          {(unreadCount > 0 || items.length > 0) && (
+            <div className="flex items-center gap-2 pt-2">
+              {unreadCount > 0 && (
                 <Button
-                  variant="link"
+                  variant="ghost"
                   size="sm"
-                  onClick={handleMarkAllAsRead}
-                  className="h-auto p-0 text-sm text-primary hover:no-underline"
+                  onClick={() => void postAction("mark-all-read")}
+                  className="h-7 gap-1.5 px-2 text-xs"
+                  disabled={isBusy}
                 >
-                  Mark all as read
+                  <CheckCheck className="size-3.5" />
+                  Mark read
                 </Button>
               )}
-              <Button
-                variant="link"
-                size="sm"
-                onClick={handleClear}
-                className="h-auto p-0 text-sm text-destructive/85 hover:text-destructive hover:no-underline transition-colors"
-                disabled={items.length === 0}
-              >
-                Clear
-              </Button>
-              <Link
-                href="/admin/notifications"
-                className="ml-auto text-sm text-muted-foreground hover:text-foreground transition-colors"
-                onClick={() => setOpen(false)}
-              >
-                View all
-              </Link>
+              {items.length > 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => void postAction("clear")}
+                  className="h-7 gap-1.5 bg-muted/60 px-2 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
+                  disabled={isBusy}
+                >
+                  <Trash2 className="size-3.5" />
+                  Clear
+                </Button>
+              )}
             </div>
-          </SheetHeader>
-        )}
+          )}
+        </SheetHeader>
 
         {/* ─── Body ───────────────────────────────────────────────── */}
-        <div className="h-full overflow-y-auto">
-          {loading ? (
+        <div
+          ref={setScrollRoot}
+          className="min-h-0 flex-1 overflow-y-auto"
+          aria-busy={loading}
+        >
+          {loading && items.length === 0 ? (
             <div className="flex items-center justify-center p-10">
               <Loader2 className="animate-spin size-7 text-muted-foreground" />
             </div>
@@ -293,10 +391,7 @@ export function Notifications() {
                     </div>
 
                     {/* Content */}
-                    <div
-                      className="flex-1 space-y-1 cursor-pointer"
-                      onClick={() => !isRead && handleMarkRead(notification.id)}
-                    >
+                    <div className="min-w-0 flex-1 space-y-1">
                       <div className="flex items-center gap-2">
                         <p
                           className={`text-sm leading-tight ${isRead ? "font-medium text-muted-foreground" : "font-semibold"}`}
@@ -316,23 +411,46 @@ export function Notifications() {
                         </p>
                       )}
                       {notification.slug && (
-                        <Link
-                          href={notification.slug}
-                          className="inline-flex text-sm text-primary hover:underline"
-                          onClick={(e) => e.stopPropagation()}
+                        <Button
+                          variant="link"
+                          size="sm"
+                          className="h-auto p-0 text-sm"
+                          disabled={isBusy}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            handleView(notification);
+                          }}
                         >
                           View
-                        </Link>
+                        </Button>
                       )}
                     </div>
 
                     {/* Remove button */}
                     <div className="flex flex-col items-end gap-2">
+                      {!isRead && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() =>
+                            void postAction("mark-read", notification.id)
+                          }
+                          className="h-6 w-6 rounded-lg text-muted-foreground transition-opacity focus-visible:opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
+                          disabled={isBusy}
+                          aria-label="Mark notification as read"
+                        >
+                          <CheckCheck className="h-3 w-3" />
+                        </Button>
+                      )}
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => handleRemove(notification.id)}
-                        className="h-6 w-6 rounded-lg opacity-0 transition-opacity group-hover:opacity-100"
+                        onClick={() =>
+                          void postAction("remove", notification.id)
+                        }
+                        className="h-6 w-6 rounded-lg text-muted-foreground transition-opacity hover:text-destructive focus-visible:opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
+                        disabled={isBusy}
+                        aria-label="Remove notification"
                       >
                         <X className="h-3 w-3" />
                       </Button>
@@ -341,7 +459,7 @@ export function Notifications() {
                 );
               })}
             </div>
-          ) : (
+          ) : !error && nextCursor === null ? (
             <div className="flex h-full flex-col items-center p-8 text-center">
               <div className="relative mb-5 mt-2">
                 <div className="flex h-14 w-14 items-center justify-center rounded-full bg-muted">
@@ -353,6 +471,42 @@ export function Notifications() {
                 You're all caught up! Check back later.
               </p>
             </div>
+          ) : null}
+          {error ? (
+            <div className="space-y-2 p-4 text-center" role="alert">
+              <p className="text-sm text-muted-foreground">{error}</p>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => void loadPage(nextCursor)}
+                disabled={isBusy}
+              >
+                Try again
+              </Button>
+            </div>
+          ) : (
+            (nextCursor !== null || (loading && items.length > 0)) && (
+              <div ref={setSentinel} className="flex justify-center p-4">
+                {loading ? (
+                  <span
+                    className="flex items-center gap-2 text-sm text-muted-foreground"
+                    role="status"
+                  >
+                    <Loader2 className="size-4 animate-spin" /> Loading older
+                    notifications…
+                  </span>
+                ) : (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    disabled={processing}
+                    onClick={() => void loadPage(nextCursor)}
+                  >
+                    Load older notifications
+                  </Button>
+                )}
+              </div>
+            )
           )}
         </div>
       </SheetContent>

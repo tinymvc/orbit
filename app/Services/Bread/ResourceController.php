@@ -1,0 +1,408 @@
+<?php
+
+namespace App\Services\Bread;
+
+use App\Services\Bread\Form;
+use Spark\Facades\Route;
+use Spark\Foundation\Application;
+use Spark\Http\Request;
+use Spark\Http\Routing\RouteGroup;
+use function is_array;
+
+/**
+ * Generic BREAD controller.
+ *
+ * Paired with a Resource subclass, this handles index / store / update /
+ * destroy / bulkAction for ANY model — zero per-model controllers needed.
+ *
+ * Supports automatic file upload processing via the Resource's file fields.
+ *
+ * Usage in routes:
+ *   ResourceController::routes(PostsResource::class);
+ * 
+ * @author Shahin Moyshan <shahin.moyshan2@gmail.com>
+ */
+class ResourceController
+{
+    /**
+     * @param class-string<Resource> $resource
+     */
+    public function __construct(protected string $resource)
+    {
+    }
+
+    // ─── Index ──────────────────────────────────────────────────────────
+
+    public function index(Request $request)
+    {
+        if ($this->resource::getBrowsePerm()) {
+            authorize('permission', $this->resource::getBrowsePerm());
+        }
+
+        $model = $this->resource::getModel();
+        $query = $model::orderBy($this->resource::getOrderBy(), $this->resource::getOrderDirection());
+
+        if (!empty($this->resource::getWith())) {
+            $query = $query->with(...$this->resource::getWith());
+        }
+
+        if ($request->has('search')) {
+            $query = $this->resource::applySearch($query, $request->input('search'));
+        }
+
+        $query = $this->resource::applyFilters($query, $request);
+
+        return inertia($this->resource::getPage(), [
+            'resource' => $this->resource::toSchema(...),
+            'dynamicOptions' => $this->resource::dynamicProps(...),
+            'paginated' => fn() => $query->paginate(
+                $request->input('per_page', 10)
+            ),
+        ]);
+    }
+
+    // ─── Store ──────────────────────────────────────────────────────────
+
+    public function store(Request $request)
+    {
+        if ($this->resource::getCreatePerm()) {
+            authorize('permission', $this->resource::getCreatePerm());
+        }
+
+        [$data, $uploadedFiles] = $this->setupDataForStore($request);
+
+        // Extract relationship data before creating the record
+        $relationData = $this->resource::extractRelationshipData($request);
+
+        $model = $this->resource::getModel();
+        try {
+            $record = $model::create($data);
+        } catch (\Throwable $e) {
+            $this->resource::cleanUpFileChanges($uploadedFiles, saved: false);
+            throw $e;
+        }
+
+        if ($record->wasCreated()) {
+            // Sync belongsToMany relationships
+            if (!empty($relationData)) {
+                $this->resource::syncRelationships($record, $relationData);
+            }
+
+            $this->resource::afterCreate($record, $data);
+
+            return inertia()
+                ->back()
+                ->with('success', $this->resource::getName() . ' created successfully.');
+        }
+
+        // Clean up uploaded files if creation failed
+        $this->resource::cleanUpFileChanges($uploadedFiles, saved: false);
+
+        return inertia()
+            ->back()
+            ->with('error', 'Failed to create ' . strtolower($this->resource::getName()) . '.');
+    }
+
+    // ─── Update ─────────────────────────────────────────────────────────
+
+    public function update(int $id, Request $request)
+    {
+        if ($this->resource::getEditPerm()) {
+            authorize('permission', $this->resource::getEditPerm());
+        }
+
+        $model = $this->resource::getModel();
+        $record = $model::findOrFail($id);
+
+        [$data, $uploadedFiles] = $this->setupDataForStore($request, $record);
+
+        // Extract relationship data before updating the record
+        $relationData = $this->resource::extractRelationshipData($request);
+
+        $original = clone $record;
+        $record->fill($data);
+
+        try {
+            $saved = $record->save();
+        } catch (\Throwable $e) {
+            $this->resource::cleanUpFileChanges($uploadedFiles, $original, saved: false);
+            throw $e;
+        }
+
+        if ($saved) {
+            $this->resource::cleanUpFileChanges($uploadedFiles, $original);
+            // Sync belongsToMany relationships
+            if (!empty($relationData)) {
+                $this->resource::syncRelationships($record, $relationData);
+            }
+
+            $this->resource::afterUpdate($record, $data);
+
+            return inertia()
+                ->back()
+                ->with('success', $this->resource::getName() . ' updated successfully.');
+        }
+
+        // Clean up uploaded files if creation failed
+        $this->resource::cleanUpFileChanges($uploadedFiles, $original, saved: false);
+
+        return inertia()
+            ->back()
+            ->with('error', 'Failed to update ' . strtolower($this->resource::getName()) . '.');
+    }
+
+    // ─── Common Store/Update Logic ─────────────────────────────────────
+
+    protected function setupDataForStore(Request $request, null|\Spark\Database\Model $record = null): array
+    {
+        if ($record) {
+            $rules = $this->resource::updateRules($record->id) ?? $this->resource::buildRulesFromFields($record->id);
+        } else {
+            $rules = $this->resource::storeRules() ?? $this->resource::buildRulesFromFields();
+        }
+
+        // Upload paths are managed by the resource, never accepted as arbitrary input.
+        foreach ($this->resource::getFileFields() as $field) {
+            $name = $field->getName();
+            if ($field->isRequired() && !$request->hasFile($name)
+                && (!$record || empty($record->{$name}) || ($request->has($name) && empty($request->input($name))))) {
+                $request->mergePostParams([$name => null]);
+                $request->validate([$name => 'required']);
+            }
+            unset($rules[$name]);
+        }
+
+        // Remove relationship field rules (handled via sync)
+        foreach ($this->resource::getRelationshipFields() as $relField) {
+            unset($rules[$relField->getName()]);
+        }
+
+        $input = $request->validate($rules);
+        $uploadedFiles = $this->resource::processFileUploads($request, $record);
+        $data = [...$input->all(), ...$uploadedFiles];
+
+        // Remove any remaining file fields that weren't processed (e.g. optional ones left empty)
+        $data = collect($data)
+            ->filter(
+                fn($value) => !(is_array($value) && isset($value['tmp_name'], $value['name'], $value['size']))
+            )
+            ->toArray();
+
+        // Allow Resource to mutate data before creation (e.g. set defaults, generate slugs, etc)
+        $data = $record
+            ? $this->resource::mutateBeforeUpdate($data, $record)
+            : $this->resource::mutateBeforeCreate($data);
+
+        return [$data, $uploadedFiles];
+    }
+
+    // ─── Search (Ajax for Combobox) ──────────────────────────────────────
+
+    /**
+     * Handle AJAX search requests for Combobox fields with a searchRoute.
+     *
+     * GET /admin/{slug}/search?field=categories&query=tech
+     *
+     * Returns JSON: [ { value: "1", label: "Tech" }, ... ]
+     */
+    public function search(Request $request)
+    {
+        if ($this->resource::getBrowsePerm()) {
+            authorize('permission', $this->resource::getBrowsePerm());
+        }
+
+        $fieldName = $request->input('field', '');
+        $query = $request->input('query', '');
+
+        // Find the matching Combobox field with a searchRoute
+        $combobox = null;
+        foreach ($this->resource::fields() as $field) {
+            if ($field instanceof Form\Combobox && $field->getName() === $fieldName) {
+                $combobox = $field;
+                break;
+            }
+        }
+
+        if (!$combobox) {
+            return json(['error' => 'Field not found'], 404);
+        }
+
+        // Non-relationship combobox — for now, return static options filtered
+        if (!$combobox->isRelationship()) {
+            return json([]);
+        }
+
+        // Use the relationship's related model
+        $parentModel = $this->resource::getModel();
+        $relationName = $combobox->getRelationName();
+        $relation = (new $parentModel)->$relationName();
+        $relatedModel = $relation->getConfig()['related'];
+        $valueKey = $combobox->getRelationValueKey() ?: 'id';
+        $labelKey = $combobox->getRelationLabelKey() ?: 'name';
+        $selectKeys = $combobox->getSelectKeys() ?: [$valueKey, $labelKey];
+        $searchKeys = $combobox->getSearchKeys() ?: [$labelKey];
+
+        // Query the related model
+        $builder = $relatedModel::select($selectKeys);
+
+        if ($query !== '') {
+            Resource::applySearch($builder, $query, is_array($searchKeys) ? $searchKeys : array_map('trim', explode(',', $searchKeys)));
+        }
+
+        $options = $builder->orderBy($labelKey)
+            ->limit(50)
+            ->get()
+            ->map(fn($row) => [
+                'value' => (string) $row->{$valueKey},
+                'label' => $row->{$labelKey},
+            ])->all();
+
+        return json($options);
+    }
+
+    // ─── Destroy ────────────────────────────────────────────────────────
+
+    public function destroy(int $id)
+    {
+        if ($this->resource::getDeletePerm()) {
+            authorize('permission', $this->resource::getDeletePerm());
+        }
+
+        $model = $this->resource::getModel();
+        $record = $model::findOrFail($id);
+
+        $this->resource::beforeDelete($record);
+
+        // Delete associated files
+        $this->resource::deleteRecordFiles($record);
+
+        $model::destroy($id);
+
+        return inertia()
+            ->back()
+            ->with('success', $this->resource::getName() . ' deleted successfully.');
+    }
+
+    // ─── Bulk Action ────────────────────────────────────────────────────
+
+    public function bulkAction(Request $request)
+    {
+        $input = $request->validate([
+            'action' => 'required|string',
+            'ids' => 'required|array|min:1',
+        ]);
+
+        $action = $input->string('action');
+        $ids = $input->array('ids');
+
+        // Built-in delete action (with file cleanup)
+        if ($action === 'delete') {
+            if ($this->resource::getDeletePerm()) {
+                authorize('permission', $this->resource::getDeletePerm());
+            }
+
+            $model = $this->resource::getModel();
+
+            // Delete associated files for each record
+            if (!empty($this->resource::getFileFields())) {
+                $records = $model::whereIn('id', $ids)->get();
+                foreach ($records as $record) {
+                    $this->resource::deleteRecordFiles($record);
+                }
+            }
+
+            $model::destroy($ids);
+
+            return inertia()
+                ->back()
+                ->with('success', 'Selected ' . $this->resource::getTitle() . ' deleted successfully.');
+        }
+
+        // Try resource custom handler first
+        $result = $this->resource::handleBulkAction($action, $ids);
+        if ($result !== null) {
+            return $result;
+        }
+
+        // Check if it's a status-change bulk action with custom column
+        $bulkActions = $this->resource::bulkActions();
+        $matchedAction = null;
+        foreach ($bulkActions as $ba) {
+            if ($ba->getAction() === $action) {
+                $matchedAction = $ba;
+                break;
+            }
+        }
+
+        if ($matchedAction) {
+            if ($this->resource::getEditPerm()) {
+                authorize('permission', $this->resource::getEditPerm());
+            }
+
+            $callback = $matchedAction->getCallback();
+            if ($callback) {
+                Application::$app->call($callback, ['ids' => $ids]);
+            } else {
+                $model = $this->resource::getModel();
+                $model::whereIn('id', $ids)->update([
+                    $matchedAction->getStatusColumn() ?: 'status' => $action
+                ]);
+            }
+        }
+
+        return inertia()
+            ->back()
+            ->with('success', 'Selected ' . $this->resource::getTitle() . ' updated successfully.');
+    }
+
+    // ─── Route Registration Helper ──────────────────────────────────────
+
+    /**
+     * Register all BREAD routes for a Resource class.
+     *
+     * Call from routes/web.php:
+     *   ResourceController::routes(PostsResource::class);
+     *
+     * Registers:
+     *   GET    /admin/{slug}             → index
+     *   POST   /admin/{slug}             → store
+     *   PUT    /admin/{slug}/{id}        → update
+     *   DELETE /admin/{slug}/{id}        → destroy
+     *   POST   /admin/{slug}/bulk-action → bulkAction
+     *   GET    /admin/{slug}/search      → search (for Combobox AJAX)
+     * 
+     * @param class-string<Resource> $resourceClass
+     * 
+     * @return RouteGroup The route group instance (in case you want to configure middleware, etc)
+     */
+    public static function routes(string $resourceClass): RouteGroup
+    {
+        return Route::group(function () use ($resourceClass) {
+            // Derive slug and name from Resource class
+            $slug = $resourceClass::getSlug();
+            $name = str_replace('/', '.', $slug);
+
+            // Instantiate controller with the Resource class
+            $controller = new static($resourceClass);
+
+            // Register routes
+            Route::post("$slug/bulk-action", [$controller, 'bulkAction'])
+                ->name("$name.actions");
+
+            Route::get("$slug/search", [$controller, 'search'])
+                ->name("$name.search");
+
+            Route::get($slug, [$controller, 'index'])
+                ->name("$name.index");
+
+            Route::post($slug, [$controller, 'store'])
+                ->name("$name.store");
+
+            Route::put("$slug/{id}", [$controller, 'update'])
+                ->name("$name.update");
+
+            Route::delete("$slug/{id}", [$controller, 'destroy'])
+                ->name("$name.destroy");
+        }); // ->middleware('auth') // You can apply middleware to the whole group if needed
+    }
+}

@@ -15,14 +15,17 @@ export default defineConfig(({ mode }) => ({
   root: path.resolve(__dirname, "./resources/app"),
   server: {
     strictPort: true,
-    port: 5133,
+    port: 5173,
   },
   build: {
     outDir: path.resolve(__dirname, "./public/build"),
     emptyOutDir: true,
     manifest: true,
     rollupOptions: {
-      input: path.resolve(__dirname, "./resources/app/app.tsx"),
+      input: [
+        path.resolve(__dirname, "./resources/app/app.tsx"),
+        path.resolve(__dirname, "./resources/app/app.css"),
+      ],
     },
   },
   resolve: {
