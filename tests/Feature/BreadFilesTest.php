@@ -43,17 +43,46 @@ final class BreadFilesTest extends DatabaseTestCase
         $this->assertFalse(disk('public')->exists('posts/new.txt'));
     }
 
+    public function test_required_multiple_upload_cannot_be_replaced_with_foreign_keys(): void
+    {
+        $resource = new class extends UploadResource {
+            public static function fields(): array
+            {
+                return [\App\Services\Bread\Form\FileUpload::make('attachments')->multiple()->required()];
+            }
+        };
+        disk('public')->put('posts/owned.txt', 'owned');
+        $record = (new Post())->fill(['attachments' => ['posts/owned.txt']]);
+        $request = new Request();
+        $request->mergePostParams(['attachments' => ['posts/foreign.txt']]);
+        try {
+            $resource::processFileUploads($request, $record);
+            $this->fail('Expected a required-file validation error.');
+        } catch (\App\Services\Bread\UploadException $error) {
+            $this->assertSame('attachments', $error->field);
+            $this->assertTrue(disk('public')->exists('posts/owned.txt'));
+        }
+    }
+
     public function test_invalid_update_cannot_remove_an_existing_thumbnail(): void
     {
         $user = $this->signIn();
         disk('public')->put('posts/old.txt', 'old');
-        $post = Post::create(['user_id' => $user->id, 'title' => 'Original', 'slug' => 'original',
-            'excerpt' => 'Summary', 'content' => 'Body', 'thumbnail' => 'posts/old.txt']);
+        $post = Post::create([
+            'user_id' => $user->id,
+            'title' => 'Original',
+            'slug' => 'original',
+            'excerpt' => 'Summary',
+            'content' => 'Body',
+            'thumbnail' => 'posts/old.txt'
+        ]);
         $this->putJson('/admin/posts/' . $post->id, ['title' => '', 'thumbnail' => ''])
             ->assertUnprocessable();
         $this->assertTrue(disk('public')->exists('posts/old.txt'));
         $this->assertDatabaseHas('posts', ['id' => $post->id, 'thumbnail' => 'posts/old.txt']);
         $this->delete('/admin/posts/' . $post->id)->assertStatus(303);
+        $this->assertTrue(disk('public')->exists('posts/old.txt'));
+        $this->delete('/admin/posts/' . $post->id . '/force-delete')->assertStatus(303);
         $this->assertFalse(disk('public')->exists('posts/old.txt'));
     }
 }

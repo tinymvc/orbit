@@ -12,6 +12,7 @@ use Spark\Database\Model;
 use Spark\Database\QueryBuilder;
 use Spark\Foundation\Application;
 use Spark\Http\Request;
+use Spark\Facades\Disk;
 use function count;
 use function in_array;
 use function is_array;
@@ -70,6 +71,9 @@ abstract class Resource
     protected static null|string $createPerm = null;
     protected static null|string $editPerm = null;
     protected static null|string $deletePerm = null;
+    /** Null inherits delete permission; override for separate trash permissions. */
+    protected static null|string $restorePerm = null;
+    protected static null|string $forceDeletePerm = null;
 
     // ─── Drawer / Sheet ─────────────────────────────────────────────────
 
@@ -117,6 +121,27 @@ abstract class Resource
         return [];
     }
 
+    /** Override to configure the reference BREAD editor and table features. */
+    public static function editor(): array { return ['style' => 'drawer', 'width' => static::$drawerWidth]; }
+    public static function pageSizeOptions(): array { return [10, 20, 30, 40, 50, 100, 200, 500]; }
+    public static function tableStateStorageKey(): ?string { return null; }
+    /** Explicit allowlist of scalar database fields: key, label, type, optional options. */
+    public static function advancedFilterFields(): array { return []; }
+    public static function sortableColumns(): array
+    {
+        return array_values(array_map(fn($column) => $column->getKey(),
+            array_filter(static::columns(), fn($column) => $column instanceof Column && $column->isSortable())));
+    }
+
+    /** Soft deletes are enabled by the model, including custom deletion columns. */
+    public static function usesSoftDeletes(): bool
+    {
+        return (new (static::getModel()))->usesSoftDeletes();
+    }
+
+    public static function getRestorePerm(): ?string { return static::$restorePerm ?? static::$deletePerm; }
+    public static function getForceDeletePerm(): ?string { return static::$forceDeletePerm ?? static::$deletePerm; }
+
     // ─── Dynamic data & hooks ─────────────────────────────────────────────
 
     /**
@@ -153,19 +178,28 @@ abstract class Resource
     public static function applyFilters(QueryBuilder $query, Request $request)
     {
         foreach (static::filters() as $filter) {
-            // If the filter has a custom callback, call it with the query and request.
-            if ($filter instanceof Filter && $request->has($filter->getKey()) && ($callback = $filter->getCallback()) !== null) {
-                Application::$app->call(
-                    $callback,
-                    ['query' => $query, 'value' => $request->input($filter->getKey())]
-                );
-                continue; // Skip default handling if callback is defined
-            }
-
             $key = $filter instanceof Filter ? $filter->getKey() : ($filter['key'] ?? '');
-            if ($request->has($key)) {
-                $query = $query->where($key, $request->input($key));
+            $queryKey = $filter instanceof Filter ? $filter->getQueryKey() : ($filter['queryKey'] ?? $key);
+            if (!$request->has($queryKey)) continue;
+            $value = $request->input($queryKey);
+            if ($value === '' || $value === null || $value === []) continue;
+            $multiple = $filter instanceof Filter ? $filter->isMultiple() : ($filter['multiple'] ?? false);
+            $exclude = $filter instanceof Filter ? $filter->isExclude() : (($filter['variant'] ?? '') === 'exclude');
+            if ($multiple) $value = is_array($value) ? $value : explode(',', (string) $value);
+            if ((!$multiple && !is_scalar($value)) || ($multiple && (count($value) > 100 || count(array_filter($value, 'is_scalar')) !== count($value)))) {
+                throw new \InvalidArgumentException('Invalid filter value.');
             }
+            if ($filter instanceof Filter && ($callback = $filter->getCallback()) !== null) {
+                Application::$app->call($callback, ['query' => $query, 'value' => $value]);
+            } elseif ($multiple) {
+                $exclude ? $query->whereNotIn($key, $value) : $query->whereIn($key, $value);
+            } else {
+                $query->where($key, $exclude ? '!=' : '=', $value);
+            }
+        }
+        $advanced = $request->input('af', $request->input('advanced_filter'));
+        if ($advanced !== null && $advanced !== '') {
+            AdvancedFilters::apply($query, $advanced, static::advancedFilterFields());
         }
         return $query;
     }
@@ -226,6 +260,11 @@ abstract class Resource
     {
     }
 
+    /** Trash lifecycle hooks apply to individual and bulk actions alike. */
+    public static function beforeRestore($record): void {}
+    public static function afterRestore($record): void {}
+    public static function beforeForceDelete($record): void {}
+
     /**
      * Handle a custom bulk action.
      * Return an Inertia response or null for default handling.
@@ -282,74 +321,69 @@ abstract class Resource
     {
         $uploadedFiles = [];
 
-        foreach (static::getFileFields() as $field) {
-            $name = $field->getName();
-            if (!$request->has($name) && !$request->hasFile($name)) {
-                continue;
-            }
+        try {
+            foreach (static::getFileFields() as $field) {
+                $name = $field->getName();
+                $payload = $request->file($name);
+                $hasUpload = is_array($payload) && ($payload['error'] ?? UPLOAD_ERR_OK) !== UPLOAD_ERR_NO_FILE;
+                if (!$request->has($name) && !$hasUpload) continue;
 
-            // Initialize uploader with field settings (upload path, accepted types, etc.)
-            $uploader = uploader(
-                uploadTo: $field->getUploadTo(),
-                extensions: $field->getAcceptedTypes(),
-                maxSize: $field->getMaxFileSize(),
-                compress: $field->getCompress(),
-                resize: $field->getResize(),
-            );
-
-            // ── Multiple file upload ────────────────────────────────────
-            if ($field->isMultiple()) {
-                $existingPaths = [];
-                if ($existingRecord && !empty($existingRecord->{$name})) {
-                    $raw = $existingRecord->{$name};
-                    $existingPaths = is_array($raw) ? $raw : (array) json_decode($raw, true);
+                $old = static::filePaths($field, $existingRecord?->{$name});
+                if ($field->isMultiple()) {
+                    $input = $request->input($name, []);
+                    $kept = is_array($input) ? array_filter($input, 'is_string') : [];
+                    $uploadedFiles[$name] = array_values(array_intersect($kept, $old));
+                } elseif (!$hasUpload) {
+                    if ($existingRecord && in_array($request->input($name), ['', null], true)) {
+                        $uploadedFiles[$name] = null;
+                    }
+                    continue;
                 }
+                if (!$hasUpload) continue;
 
-                // Collect paths the client sent back (existing files to keep)
-                $inputValue = $request->post($name, []);
-                $keptPaths = is_array($inputValue) ? array_filter($inputValue, 'is_string') : [];
+                $uploader = Disk::disk($field->getDisk())->uploader(
+                    uploadTo: $field->getUploadTo() ?? '',
+                    extensions: $field->getAcceptedTypes(),
+                    multiple: false,
+                    maxSize: $field->getMaxFileSize(),
+                    compress: $field->getCompress(),
+                    resize: $field->getResize(),
+                );
 
-                // Only retain paths already owned by this record.
-                $keptPaths = array_values(array_intersect($keptPaths, $existingPaths));
-
-                // Upload new files
-                $newPaths = [];
-                if ($request->hasFile($name)) {
-                    $uploader->multiple = true;
-                    $newPaths = (array) $uploader->upload($name);
+                // Upload one file at a time so a later failure can roll back every new key.
+                $files = [$payload];
+                if ($field->isMultiple()) {
+                    if (!is_array($payload['name'] ?? null)) {
+                        throw new \Spark\Exceptions\Utils\UploaderUtilException('Invalid multiple upload payload.');
+                    }
+                    $files = [];
+                    foreach ($payload['name'] as $key => $filename) {
+                        $file = ['name' => $filename];
+                        foreach (['tmp_name', 'size', 'error', 'type'] as $attribute) {
+                            $file[$attribute] = $payload[$attribute][$key] ?? null;
+                        }
+                        if ($file['error'] !== UPLOAD_ERR_NO_FILE) $files[] = $file;
+                    }
                 }
-
-                $uploadedFiles[$name] = array_values([...$keptPaths, ...$newPaths]);
-                continue;
+                foreach ($files as $file) {
+                    $path = $uploader->upload($file);
+                    if ($field->isMultiple()) {
+                        $uploadedFiles[$name] = [...$uploadedFiles[$name], ...(array) $path];
+                    } else {
+                        $uploadedFiles[$name] = $path;
+                    }
+                }
             }
-
-            // ── Single file upload ────────────────────
-
-            // New file uploaded — handle upload + old file cleanup
-            if ($request->hasFile($name)) {
-                // Upload new file
-                $path = $uploader->upload($name);
-
-                $uploadedFiles[$name] = $path;
-                continue;
+            foreach (static::getFileFields() as $field) {
+                $name = $field->getName();
+                $value = array_key_exists($name, $uploadedFiles) ? $uploadedFiles[$name] : $existingRecord?->{$name};
+                if ($field->isRequired() && !static::filePaths($field, $value)) {
+                    throw new \Spark\Exceptions\Utils\UploaderUtilException('This file field is required.');
+                }
             }
-
-            // Check the submitted value for this file field
-            $inputValue = $request->input($name);
-
-            // If the input matches the existing file path → no change, skip entirely
-            if ($existingRecord && $inputValue === $existingRecord->{$name}) {
-                continue;
-            }
-
-            // Empty string or null → user explicitly removed the file
-            if (
-                $existingRecord
-                && !empty($existingRecord->{$name})
-                && ($inputValue === '' || $inputValue === null)
-            ) {
-                $uploadedFiles[$name] = null;
-            }
+        } catch (\Throwable $error) {
+            static::cleanUpFileChanges($uploadedFiles, $existingRecord, saved: false);
+            throw new UploadException($name, $error);
         }
 
         return $uploadedFiles;
@@ -375,9 +409,39 @@ abstract class Resource
                 if (preg_match('#^https?://#i', $path)) {
                     continue;
                 }
-                uploader(uploadTo: $field->getUploadTo())->delete($path);
+                Disk::disk($field->getDisk())->delete($path);
             }
         }
+    }
+
+    public static function filePaths(Form\FileUpload $field, mixed $value): array
+    {
+        if ($field->isMultiple() && is_string($value)) $value = json_decode($value, true) ?: [];
+        return array_values(array_filter((array) $value, fn($path) => is_string($path) && $path !== ''));
+    }
+
+    /** Keep stored keys intact; preview URLs are separate, read-only metadata. */
+    public static function recordWithFileUrls(Model|array $record): array
+    {
+        $data = $record instanceof Model ? $record->toArray() : $record;
+        $data['__fileUrls'] = [];
+        foreach (static::getFileFields() as $field) {
+            foreach (static::filePaths($field, $data[$field->getName()] ?? null) as $path) {
+                if (preg_match('#^https?://#i', $path)) {
+                    $url = $path;
+                } elseif ($field->getMediaUrl() !== null) {
+                    $url = rtrim($field->getMediaUrl(), '/') . '/' . implode('/', array_map('rawurlencode', explode('/', $path)));
+                } elseif (config('disk.disks.' . ($field->getDisk() ?? config('disk.default')) . '.visibility') === 'public') {
+                    $url = Disk::disk($field->getDisk())->url($path);
+                } else {
+                    $url = static::getUrl() . '/' . $data['id'] . '/file?' . http_build_query([
+                        'field' => $field->getName(), 'path' => $path,
+                    ]);
+                }
+                $data['__fileUrls'][$field->getName()][$path] = $url;
+            }
+        }
+        return $data;
     }
 
     /**
@@ -499,6 +563,16 @@ abstract class Resource
      */
     public static function toSchema(): array
     {
+        $bulkActions = static::serialise(static::bulkActions());
+        if (static::usesSoftDeletes()) {
+            $bulkActions = array_values(array_filter($bulkActions,
+                fn($action) => !in_array($action['action'], ['delete', 'restore', 'force-delete'], true)));
+            $bulkActions = [...$bulkActions,
+                ['action' => 'delete', 'label' => 'Move to trash', 'variant' => 'destructive'],
+                ['action' => 'restore', 'label' => 'Restore', 'variant' => 'default'],
+                ['action' => 'force-delete', 'label' => 'Delete permanently', 'variant' => 'destructive'],
+            ];
+        }
         return [
             'name' => static::$name,
             'title' => static::getTitle(),
@@ -508,16 +582,24 @@ abstract class Resource
             'fields' => static::serialise(static::fields()),
             'columns' => static::serialise(static::columns()),
             'filters' => static::serialise(static::filters()),
-            'bulkActions' => static::serialise(static::bulkActions()),
+            'bulkActions' => $bulkActions,
+            'softDeletes' => static::usesSoftDeletes() ? ['column' => (new (static::getModel()))->getSoftDeleteColumn()] : null,
 
             'permissions' => [
                 'browse' => static::$browsePerm,
                 'create' => static::$createPerm,
                 'edit' => static::$editPerm,
                 'delete' => static::$deletePerm,
+                'restore' => static::getRestorePerm(),
+                'forceDelete' => static::getForceDeletePerm(),
             ],
 
             'drawerWidth' => static::$drawerWidth,
+            'editor' => static::editor(),
+            'pageSizeOptions' => static::pageSizeOptions(),
+            'serverSorting' => !empty(static::sortableColumns()),
+            'tableStateStorageKey' => static::tableStateStorageKey(),
+            'advancedFilters' => static::advancedFilterFields() ? ['fields' => static::advancedFilterFields()] : null,
             'disabled' => static::$disabled,
             'initialColumnVisibility' => static::initialColumnVisibility(),
             'translations' => static::translations(),

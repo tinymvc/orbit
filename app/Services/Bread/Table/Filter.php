@@ -13,6 +13,17 @@ use Spark\Contracts\Support\Arrayable;
  */
 class Filter implements Arrayable
 {
+    protected ?string $queryKey = null;
+    protected bool $multiple = false;
+    protected bool $exclude = false;
+
+    public function queryKey(string $key): static { $this->queryKey = $key; return $this; }
+    public function multiple(bool $enabled = true): static { $this->multiple = $enabled; return $this; }
+    public function exclude(bool $enabled = true): static { $this->exclude = $enabled; return $this; }
+    public function getQueryKey(): string { return $this->queryKey ?? $this->key; }
+    public function isMultiple(): bool { return $this->multiple; }
+    public function isExclude(): bool { return $this->exclude; }
+
     // ─── Constructor & Factory ──────────────────────────────────────────
 
     public function __construct(
@@ -73,6 +84,9 @@ class Filter implements Arrayable
     {
         return [
             'key' => $this->key,
+            'queryKey' => $this->getQueryKey(),
+            'multiple' => $this->multiple,
+            'variant' => $this->exclude ? 'exclude' : 'filter',
             'label' => $this->label ?? str($this->key)->headline()->toString(),
             'options' => $this->options,
         ];

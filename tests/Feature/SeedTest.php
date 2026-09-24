@@ -22,6 +22,12 @@ final class SeedTest extends DatabaseTestCase
             ->withHeaders(['X-CSRF-TOKEN' => 'test-csrf']);
         $post = Post::first();
         $this->delete('/admin/posts/' . $post->id)->assertStatus(303);
+        $this->assertFalse(Post::find($post->id));
+        $this->assertTrue(Post::onlyTrashed()->findOrFail($post->id)->trashed());
+        $this->post('/admin/posts/' . $post->id . '/restore')->assertStatus(302);
+        $this->assertFalse(Post::findOrFail($post->id)->trashed());
+        $this->delete('/admin/posts/' . $post->id)->assertStatus(303);
+        $this->delete('/admin/posts/' . $post->id . '/force-delete')->assertStatus(303);
         $this->assertDatabaseMissing('posts', ['id' => $post->id]);
     }
 }

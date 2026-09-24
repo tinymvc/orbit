@@ -30,8 +30,16 @@ export interface ServerResourceSchema {
     create?: string | null;
     edit?: string | null;
     delete?: string | null;
+    restore?: string | null;
+    forceDelete?: string | null;
   };
 
+  softDeletes?: BreadConfig["softDeletes"] | null;
+  editor?: BreadConfig["editor"];
+  pageSizeOptions?: number[];
+  serverSorting?: boolean;
+  tableStateStorageKey?: string | null;
+  advancedFilters?: BreadConfig["advancedFilters"] | null;
   drawerWidth: "sm" | "md" | "lg" | "xl" | "2xl";
   disabled: string[];
   initialColumnVisibility: Record<string, boolean>;
@@ -93,6 +101,7 @@ export interface ServerFieldSchema {
 }
 
 export interface ServerColumnSchema {
+  sortable?: boolean;
   key: string;
   header?: string;
   type?: string;
@@ -117,6 +126,9 @@ export interface ServerColumnSchema {
 }
 
 export interface ServerFilter {
+  queryKey?: string;
+  multiple?: boolean;
+  variant?: "filter" | "exclude";
   key: string;
   label: string;
   options: { value: string; label: string }[] | string;
@@ -257,13 +269,20 @@ export function buildConfigFromSchema(
   }
 
   const recordCallback = (record: Record<string, unknown>) => {
-    const form: Record<string, unknown> = {};
+    const form: Record<string, unknown> = { __fileUrls: record.__fileUrls };
     for (const field of fields) {
       if (field.hidden) continue;
       const val = record[field.name];
       if (field.type === "file") {
         // Keep string paths as-is for preview; null/undefined → ""
-        form[field.name] = val ?? "";
+        if (field.multiple && typeof val === "string") {
+          try {
+            const paths = JSON.parse(val);
+            form[field.name] = Array.isArray(paths) ? paths : [];
+          } catch {
+            form[field.name] = val ? [val] : [];
+          }
+        } else form[field.name] = val ?? (field.multiple ? [] : "");
       } else if (field.type === "combobox" && field.relationship) {
         if (field.relationType === "belongsTo") {
           // BelongsTo: value is the FK directly on the record (e.g. user_id)
@@ -290,6 +309,7 @@ export function buildConfigFromSchema(
 
   const submitCallback = (formData: Record<string, unknown>) => {
     const data = { ...formData };
+    delete data.__fileUrls;
     for (const field of fields) {
       // Preserve File objects (Inertia auto-converts to FormData)
       if (data[field.name] instanceof File) continue;
@@ -359,6 +379,9 @@ export function buildConfigFromSchema(
   // Resolve filter dynamic options
   const filters = schema.filters.map((f) => ({
     key: f.key,
+    queryKey: f.queryKey,
+    multiple: f.multiple,
+    variant: f.variant,
     label: f.label,
     options: resolveOptions(f.options, dynamicOptions),
   }));
@@ -368,13 +391,19 @@ export function buildConfigFromSchema(
     label: ba.label,
     action: ba.action,
     variant: ba.variant,
-    callback: async (ids: number[]) => {
-      router.post(
-        `${schema.url}/bulk-action`,
-        { action: ba.action, ids },
-        { preserveScroll: true },
-      );
-    },
+    callback: (ids: number[]) =>
+      new Promise<void>((resolve, reject) => {
+        router.post(
+          `${schema.url}/bulk-action`,
+          { action: ba.action, ids },
+          {
+            preserveScroll: true,
+            onSuccess: () => resolve(),
+            onError: () => reject(new Error("The bulk action failed.")),
+            onCancel: () => reject(new Error("The bulk action was cancelled.")),
+          },
+        );
+      }),
   }));
 
   // Strip null permissions
@@ -384,7 +413,13 @@ export function buildConfigFromSchema(
   if (schema.permissions.edit) permissions.edit = schema.permissions.edit;
   if (schema.permissions.delete) permissions.delete = schema.permissions.delete;
 
+  if (schema.permissions.restore)
+    permissions.restore = schema.permissions.restore;
+  if (schema.permissions.forceDelete)
+    permissions.forceDelete = schema.permissions.forceDelete;
+
   return {
+    softDeletes: schema.softDeletes ?? undefined,
     url: schema.url,
     title: schema.title,
     name: schema.name,
@@ -396,6 +431,11 @@ export function buildConfigFromSchema(
     submitCallback,
     translations: schema.translations as BreadConfig["translations"],
     size: { drawer_width: schema.drawerWidth },
+    editor: schema.editor,
+    pageSizeOptions: schema.pageSizeOptions,
+    serverSorting: schema.serverSorting,
+    tableStateStorageKey: schema.tableStateStorageKey ?? undefined,
+    advancedFilters: schema.advancedFilters ?? undefined,
     disabled: schema.disabled,
     initialColumnVisibility: schema.initialColumnVisibility,
     bulkActions,
@@ -410,15 +450,32 @@ export function buildColumnsFromSchema(
   handleEdit: (record: Record<string, unknown>) => void;
   handleDelete: (id: number) => void;
   handleCreate: () => void;
-  can: { delete: boolean; edit: boolean; create: boolean };
+  handleRestore?: (id: number) => void;
+  handleForceDelete?: (id: number) => void;
+  isMutating?: boolean;
+  can: {
+    delete: boolean;
+    edit: boolean;
+    create: boolean;
+    restore?: boolean;
+    forceDelete?: boolean;
+  };
 }) => ColumnDef<Record<string, unknown>>[] {
-  return ({ handleEdit, handleDelete, can }) => {
+  return ({
+    handleEdit,
+    handleDelete,
+    handleRestore,
+    handleForceDelete,
+    isMutating,
+    can,
+  }) => {
     const cols: ColumnDef<Record<string, unknown>>[] = schema.columns.map(
       (col) => {
         const headerText = col.header ?? headline(col.key);
 
         return {
           accessorKey: col.key,
+          enableSorting: col.sortable ?? false,
           header: headerText,
           cell: ({ row }: { row: Row<Record<string, unknown>> }) => {
             const record = row.original;
@@ -426,9 +483,20 @@ export function buildColumnsFromSchema(
               ? resolveAccessor(record, col.accessor)
               : record[col.key];
             const type = col.type ?? "text";
+            const fileUrls = (
+              record.__fileUrls as
+                | Record<string, Record<string, string>>
+                | undefined
+            )?.[col.key];
+            const previewUrl = (path: string) =>
+              fileUrls?.[path] ?? mediaUrl(path);
 
             const wrapClickToEdit = (content: React.ReactNode) => {
-              if (col.clickToEdit) {
+              if (
+                col.clickToEdit &&
+                can.edit &&
+                !(schema.softDeletes && record[schema.softDeletes.column])
+              ) {
                 return (
                   <Button
                     variant="link"
@@ -480,7 +548,7 @@ export function buildColumnsFromSchema(
                       {paths.map((p, i) => (
                         <img
                           key={i}
-                          src={mediaUrl(p)}
+                          src={previewUrl(p)}
                           alt=""
                           className={`${imgClass} ring-2 ring-background`}
                         />
@@ -491,7 +559,7 @@ export function buildColumnsFromSchema(
                 return wrapClickToEdit(
                   rawValue ? (
                     <img
-                      src={mediaUrl(String(rawValue))}
+                      src={previewUrl(String(rawValue))}
                       alt=""
                       className={imgClass}
                     />
@@ -630,7 +698,7 @@ export function buildColumnsFromSchema(
                       {paths.map((p, i) => (
                         <img
                           key={i}
-                          src={mediaUrl(p)}
+                          src={previewUrl(p)}
                           alt=""
                           className={thumbClass}
                         />
@@ -641,7 +709,7 @@ export function buildColumnsFromSchema(
                 return wrapClickToEdit(
                   rawValue ? (
                     <img
-                      src={mediaUrl(String(rawValue))}
+                      src={previewUrl(String(rawValue))}
                       alt=""
                       className={thumbClass}
                     />
@@ -727,13 +795,16 @@ export function buildColumnsFromSchema(
     cols.push({
       id: "actions",
       cell: ({ row }: { row: Row<Record<string, unknown>> }) => {
-        if (!can.edit && !can.delete) return null;
         return (
           <BreadActionsCell
             record={row.original}
             onEdit={handleEdit}
             onDelete={handleDelete}
             can={can}
+            softDeletes={schema.softDeletes ?? undefined}
+            onRestore={handleRestore}
+            onForceDelete={handleForceDelete}
+            disabled={isMutating}
           />
         );
       },

@@ -13,11 +13,14 @@ class UploadResource extends Resource
     protected static string $slug = 'documents';
     protected static string $urlPrefix = '/files/';
 
+    public static ?string $disk = 'public';
+
     public static function fields(): array
     {
         return [
-            FileUpload::make('thumbnail')->uploadTo('posts')->acceptedTypes(['txt'])->maxFileSize(1),
-            FileUpload::make('attachments')->uploadTo('posts')->acceptedTypes(['txt'])->maxFileSize(1)->multiple(),
+            FileUpload::make('image')->disk(static::$disk)->uploadTo('posts')->acceptedTypes(['png'])->compress(80)->resize(4, 4),
+            FileUpload::make('thumbnail')->disk(static::$disk)->uploadTo('posts')->acceptedTypes(['txt'])->maxFileSize(1),
+            FileUpload::make('attachments')->disk(static::$disk)->uploadTo('posts')->acceptedTypes(['txt'])->maxFileSize(1)->multiple(),
         ];
     }
 

@@ -31,8 +31,15 @@ final class BreadTest extends DatabaseTestCase
     {
         $user = $this->signIn();
         $category = Category::create(['name' => 'Tech', 'slug' => 'tech']);
-        $data = ['title' => 'Test post', 'slug' => 'test-post', 'user_id' => $user->id,
-            'status' => 'draft', 'excerpt' => 'Summary', 'content' => 'Body', 'categories' => [$category->id]];
+        $data = [
+            'title' => 'Test post',
+            'slug' => 'test-post',
+            'user_id' => $user->id,
+            'status' => 'draft',
+            'excerpt' => 'Summary',
+            'content' => 'Body',
+            'categories' => [$category->id]
+        ];
         $this->post('/admin/posts', $data)->assertStatus(302);
         $post = Post::first();
         $this->assertDatabaseHas('categories_posts', ['post_id' => $post->id, 'category_id' => $category->id]);
@@ -43,7 +50,9 @@ final class BreadTest extends DatabaseTestCase
         $this->post('/admin/posts/bulk-action', ['action' => 'published', 'ids' => [$post->id]])->assertStatus(302);
         $this->assertDatabaseHas('posts', ['id' => $post->id, 'status' => 'published']);
         $this->post('/admin/posts/bulk-action', ['action' => 'delete', 'ids' => [$post->id]])->assertStatus(302);
-        $this->assertDatabaseCount('posts', 0);
+        $this->assertSame(0, Post::count());
+        $this->assertSame(1, Post::onlyTrashed()->count());
+        $this->assertDatabaseCount('posts', 1);
     }
 
     public function test_resource_sort_direction_and_update_hooks_are_honored(): void

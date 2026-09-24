@@ -116,6 +116,7 @@ export interface FieldSchema {
   maxFileSize?: number;
   /** Media URL prefix for displaying existing files (e.g. "/uploads/") */
   mediaUrl?: string;
+  fileUrls?: Record<string, string>;
   /** Allow multiple file uploads */
   multiple?: boolean;
 
@@ -396,6 +397,7 @@ const FileUploadField = React.memo<FileUploadFieldProps>(
       acceptedTypes={field.acceptedTypes}
       maxFileSize={field.maxFileSize}
       mediaUrl={field.mediaUrl}
+      fileUrls={field.fileUrls}
     />
   ),
 );
@@ -461,7 +463,7 @@ interface AutoFormFieldsProps {
 export const AutoFormFields = React.memo<AutoFormFieldsProps>(
   ({ fields, formData, isEdit, handleChange, formErrors }) => {
     // Filter fields based on visibility
-    const visibleFields = fields.filter((f) => {
+    const visibleFields = fields.map((field) => ({ ...field, fileUrls: (formData.__fileUrls as Record<string, Record<string, string>> | undefined)?.[field.name] })).filter((f) => {
       if (f.hidden) return false;
       if (f.createOnly && isEdit) return false;
       if (f.editOnly && !isEdit) return false;

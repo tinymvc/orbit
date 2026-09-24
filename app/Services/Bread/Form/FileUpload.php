@@ -26,6 +26,19 @@ class FileUpload extends Field
     protected null|array $resizeDimensions = null;
     protected null|string $mediaUrl = null;
     protected bool $multiple = false;
+    protected ?string $disk = 'public';
+
+    /** Choose a configured disk; null uses disk.default. Existing fields remain public. */
+    public function disk(?string $disk): static
+    {
+        $this->disk = $disk;
+        return $this;
+    }
+
+    public function getDisk(): ?string
+    {
+        return $this->disk;
+    }
 
     public static function make(string $name): static
     {
@@ -69,6 +82,11 @@ class FileUpload extends Field
         return $this->resizeDimensions;
     }
 
+    public function getMediaUrl(): ?string
+    {
+        return $this->mediaUrl;
+    }
+
     public function isMultiple(): bool
     {
         return $this->multiple;
@@ -77,7 +95,7 @@ class FileUpload extends Field
     // ─── Property Setters ───────────────────────────────────────────────
 
     /**
-     * Upload directory relative to storage/uploads/.
+     * Directory relative to the selected disk's root.
      */
     public function uploadTo(string $dir): static
     {

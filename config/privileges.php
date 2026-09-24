@@ -20,7 +20,9 @@ return [
         'browse' => 'View Posts Table',
         'create' => 'Create Posts',
         'edit' => 'Edit Posts',
-        'delete' => 'Delete Posts',
+        'delete' => 'Move Posts to Trash',
+        'restore' => 'Restore Trashed Posts',
+        'force_delete' => 'Permanently Delete Trashed Posts',
     ],
     'settings' => [
         'general' => 'Manage General Settings',

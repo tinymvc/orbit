@@ -489,7 +489,8 @@ Form\DatePicker::make('birth_date')
 
 ```php
 Form\FileUpload::make('thumbnail')
-    ->uploadTo('posts')                    // Upload directory (relative to storage/uploads/)
+    ->disk('public')                      // Any disk in config/disk.php
+    ->uploadTo('posts')                    // Directory within the selected disk
     ->acceptedTypes(['jpg', 'png', 'webp']) // Allowed extensions
     ->maxFileSize(4096)                    // Max size in KB (4MB)
     ->compress(80)                         // JPEG/WebP quality (1-100)
@@ -777,14 +778,128 @@ public static function updateRules(int $id): null|array
 
 ### File Uploads
 
-File uploads are handled automatically when you use `Form\FileUpload`. The module:
+File fields use `Spark\Facades\Disk` for uploading and deleting files. Choose any
+named disk from `config/disk.php` in the resource definition:
 
-- Processes uploads **before** validation
-- Stores files in `storage/uploads/{uploadTo}/`
-- Automatically **deletes old files** on update or record deletion
-- Supports **compression** and **resizing** for images
-- Supports **multiple file uploads**
-- Makes files accessible via the `/uploads/` public URL
+```php
+Form\FileUpload::make('thumbnail')->disk('public')->uploadTo('posts');
+Form\FileUpload::make('documents')->disk('local')->uploadTo('documents')->multiple();
+Form\FileUpload::make('assets')->disk('s3')->uploadTo('assets')->multiple();
+Form\FileUpload::make('file')->disk(null); // Use FILESYSTEM_DISK / disk.default
+```
+
+Existing fields default to `public`, preserving `storage/uploads` and existing
+relative paths. `uploadTo()` is relative to the selected disk's root. The server
+chooses the disk; browser input cannot override it. Changing a field's disk does
+not move existing files: migrate those objects before changing its configuration.
+
+BREAD validates form values before uploads, keeps only existing keys belonging to
+the edited record, removes replaced files after a successful save, and rolls back
+new uploads after failed batches or saves. Image resize/compression settings are
+passed to TinyCore's disk uploader (JPEG, PNG and GIF transforms in the installed
+version). Multiple-file columns should use a JSON/array model cast.
+
+Stored keys remain separate from preview URLs. Public disks use `Disk::url()`;
+private local files use an authenticated resource endpoint and streamed responses.
+Private S3 previews redirect to `Disk::temporaryUrl()` links lasting five minutes.
+Preview requests check the resource's browse permission and exact record/field/key
+association. Existing external URLs and explicit `mediaUrl()` overrides remain
+supported. Configure AWS credentials, bucket, region, and optional endpoint in
+`config/disk.php`/environment variables. S3-compatible providers use the same disk.
+
+### Soft Delete and Trash
+
+Posts use Tinycore's native soft deletes. Run `php spark migrate` before serving
+this version to add the nullable `posts.deleted_at` column. Existing posts stay
+active; the migration does not remove or rewrite their content.
+
+BREAD automatically detects a model's `protected const USE_SOFT_DELETES = true`
+and its deletion column (including `SOFT_DELETE_COLUMN` overrides). For another
+resource, add that constant to its model and add `$table->softDeletes()` in a new
+table migration. Models without soft deletes keep their normal delete behavior.
+
+The table offers **Without trashed** (default), **With trashed**, and **Only
+trashed** views using `trashed=without|with|only`. Search, filters, sorting, and
+pagination work within the selected view. The compact trash selector sits after search and shows Active, All, or Trashed.
+Trashed rows have a subtle background and an inline badge beside their first visible
+data cell, without adding a column; they cannot be edited. Row menus and bulk actions support moving to trash, restoring, and
+permanent deletion, with confirmation before destructive actions. In mixed
+selections each action operates only on eligible records and displays that count.
+
+- `DELETE /admin/{resource}/{id}` moves an active record to trash.
+- `POST /admin/{resource}/{id}/restore` restores a trashed record.
+- `DELETE /admin/{resource}/{id}/force-delete` permanently deletes a trashed record.
+- The bulk endpoint accepts `delete`, `restore`, and `force-delete` actions.
+
+Trash and restore preserve uploaded files and relationship links. Permanent
+deletion removes owned files from each field's configured disk after the database
+delete succeeds. Private file previews remain available to users with the resource's
+browse permission while the record is in trash. Trashed slugs remain reserved by
+the unique constraint, so restoring cannot conflict with a reused slug. The existing
+`archived` publication status is separate from trash.
+
+Posts permissions are `posts.delete`, `posts.restore`, and `posts.force_delete`.
+Assign the new permissions to roles that need recovery or permanent deletion;
+`all.access` already includes them. Generic resources can set `$restorePerm` and
+`$forceDeletePerm`; null defaults to their delete permission. Lifecycle hooks
+`beforeDelete`, `beforeRestore`, `afterRestore`, and `beforeForceDelete` run for
+individual and bulk actions. Restore and permanent deletion routes are registered
+only for soft-delete models.
+
+The shared React BREAD component also supports hand-built tables with
+`softDeletes: { column: 'deleted_at', badgeColumn: 'title' }` in `BreadConfig`.
+`badgeColumn` is optional; if omitted or hidden, the badge follows the first visible
+data column. Server-driven resources receive this configuration automatically
+from the model. Pass the supplied restore/permanent-delete handlers and permission
+flags to `BreadActionsCell` when defining custom action columns.
+
+### Table and Editor Options
+
+The updated BREAD component uses Orbit's Inertia transport and error handling.
+It supports desktop drawers or modals, mobile drawers, configurable page sizes,
+page jumping, multi-select/exclusion filters, grouped advanced filters, optional
+saved table query state, deep links, and reusable inline-edit cells.
+
+```php
+// On a Resource subclass:
+public static function editor(): array
+{
+    return ['style' => 'modal', 'width' => '3xl']; // drawer/modal; sm through 6xl, full
+}
+public static function pageSizeOptions(): array { return [10, 20, 50, 100]; }
+public static function tableStateStorageKey(): ?string { return 'products-table'; }
+public static function advancedFilterFields(): array
+{
+    return [
+        ['key' => 'name', 'label' => 'Name', 'type' => 'text'],
+        ['key' => 'price', 'label' => 'Price', 'type' => 'number'],
+    ];
+}
+```
+
+Mark allowed server sort columns with `Table\Column::make('name')->sortable()`.
+Pagination is capped at 500 rows, clamps out-of-range pages, and sorting/filtering
+runs before pagination. Advanced filters are opt-in scalar database fields;
+unknown fields/operators and malformed values are rejected. Relationships still
+use custom filter callbacks. Date filters accept `YYYY-MM-DD` values.
+
+```php
+Table\Filter::make('status')->multiple()->options($statuses);
+Table\Filter::make('status')->queryKey('exclude_status')->exclude()->multiple()->options($statuses);
+```
+
+`queryKey()` changes the request parameter while the field key still names the
+filtered column. Multi-select callbacks receive an array. Saved query state is
+opt-in, scoped by user ID, and explicit URLs take precedence.
+
+For handwritten React pages, use `BreadConfig.editor`, `pageSizeOptions`,
+`serverSorting`, `advancedFilters`, and `tableStateStorageKey`. The legacy
+`size.drawer_width` remains supported. `deepLink: { param, fetchRecord? }` opens
+an editor from a record ID in the URL; `fetchRecord` must enforce access on its
+server endpoint. `BreadInlineEditCell` accepts a value, label, render function,
+and asynchronous `onSave`; reject that promise on validation/save failure so the
+editor remains open. These optional APIs do not automatically enable partial
+updates in a resource's existing validation rules.
 
 ### Relationships
 
@@ -1361,7 +1476,8 @@ Coverage includes authentication and CSRF, permissions, users and roles, profile
 updates, notification pagination/read actions/ownership, BREAD CRUD/search/filtering/relationships,
 file retention and uploads, resource generation, dashboard and form schemas,
 default seeders, CORS, and the configured SQLite cache/locks/queue and local disks.
-External SMTP, Redis, S3, and MySQL/PostgreSQL integrations need separate testing
+S3 upload/signing/cleanup is tested against an isolated local S3 transport fixture.
+External SMTP, Redis, live S3 buckets, and MySQL/PostgreSQL integrations need separate testing
 against those services.
 
 Notifications are available in the header drawer. The authenticated feed returns

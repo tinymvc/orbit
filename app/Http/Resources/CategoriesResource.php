@@ -71,14 +71,14 @@ class CategoriesResource extends Resource
     public static function columns(): array
     {
         return [
-            Table\Column::make('name')
+            Table\Column::make('name')->sortable()
                 ->clickToEdit()
                 ->truncate(50),
 
             Table\Column::make('description')
                 ->truncate(80),
 
-            Table\Column::make('created_at')
+            Table\Column::make('created_at')->sortable()
                 ->header('Created')
                 ->date(),
         ];

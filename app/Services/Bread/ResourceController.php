@@ -4,6 +4,7 @@ namespace App\Services\Bread;
 
 use App\Services\Bread\Form;
 use Spark\Facades\Route;
+use Spark\Facades\Disk;
 use Spark\Foundation\Application;
 use Spark\Http\Request;
 use Spark\Http\Routing\RouteGroup;
@@ -40,7 +41,28 @@ class ResourceController
         }
 
         $model = $this->resource::getModel();
-        $query = $model::orderBy($this->resource::getOrderBy(), $this->resource::getOrderDirection());
+        $input = $request->validate([
+            'trashed' => 'nullable|in:without,with,only',
+            'sort' => 'nullable|string',
+            'direction' => 'nullable|in:asc,desc',
+            'per_page' => 'nullable|integer|min:1|max:500|regex:/^[1-9][0-9]*$/',
+            'page' => 'nullable|integer|min:1|regex:/^[1-9][0-9]*$/',
+            'search' => 'nullable|string',
+        ]);
+        $sort = $input['sort'] ?: $this->resource::getOrderBy();
+        if ($input['sort'] && !in_array($sort, $this->resource::sortableColumns(), true)) {
+            return $request->prepareValidationError('This column cannot be sorted.', ['sort' => ['This column cannot be sorted.']]);
+        }
+        $direction = $input['sort'] ? ($input['direction'] ?: 'asc') : $this->resource::getOrderDirection();
+        $query = $model::orderBy($sort, $direction);
+
+        if ($this->resource::usesSoftDeletes()) {
+            $query = match ($input['trashed']) {
+                'with' => $query->withTrashed(),
+                'only' => $query->onlyTrashed(),
+                default => $query->withoutTrashed(),
+            };
+        }
 
         if (!empty($this->resource::getWith())) {
             $query = $query->with(...$this->resource::getWith());
@@ -50,15 +72,54 @@ class ResourceController
             $query = $this->resource::applySearch($query, $request->input('search'));
         }
 
-        $query = $this->resource::applyFilters($query, $request);
+        try {
+            $query = $this->resource::applyFilters($query, $request);
+        } catch (\InvalidArgumentException $error) {
+            return $request->prepareValidationError($error->getMessage(), ['filters' => [$error->getMessage()]]);
+        }
 
         return inertia($this->resource::getPage(), [
             'resource' => $this->resource::toSchema(...),
             'dynamicOptions' => $this->resource::dynamicProps(...),
-            'paginated' => fn() => $query->paginate(
-                $request->input('per_page', 10)
-            ),
+            'paginated' => function () use ($query, $input) {
+                $page = new Paginator($query->count(), (int) ($input['per_page'] ?: 10), (int) ($input['page'] ?: 1));
+                return $page->setData($query->limit($page->offset(), $page->limit())->all())
+                    ->map($this->resource::recordWithFileUrls(...));
+            },
         ]);
+    }
+
+    /** Serve only keys attached to this record, using its server-selected disk. */
+    public function file(int $id, Request $request)
+    {
+        if ($this->resource::getBrowsePerm())
+            authorize('permission', $this->resource::getBrowsePerm());
+        $input = $request->validate(['field' => 'required|string', 'path' => 'required|string']);
+        $model = $this->resource::getModel();
+        $record = $this->resource::usesSoftDeletes()
+            ? $model::withTrashed()->findOrFail($id) : $model::findOrFail($id);
+        foreach ($this->resource::getFileFields() as $field) {
+            if ($field->getName() !== $input['field'])
+                continue;
+            $path = $input['path'];
+            abort_unless(in_array($path, $this->resource::filePaths($field, $record->{$field->getName()}), true), 404);
+            abort_if((bool) preg_match('#^https?://#i', $path), 404);
+            $disk = Disk::disk($field->getDisk());
+            $diskName = $field->getDisk() ?? config('disk.default');
+            if (config("disk.disks.$diskName.driver") === 's3') {
+                return redirect($disk->temporaryUrl($path, 300));
+            }
+            abort_unless($disk->exists($path), 404);
+            $mime = $disk->mimeType($path);
+            $inline = in_array($mime, ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/bmp'], true);
+            return new FileResponse($disk->path($path), [
+                'Content-Type' => $mime,
+                'Content-Disposition' => ($inline ? 'inline' : 'attachment') . "; filename*=UTF-8''" . rawurlencode(basename($path)),
+                'X-Content-Type-Options' => 'nosniff',
+                'Cache-Control' => 'private, no-store',
+            ]);
+        }
+        abort(404);
     }
 
     // ─── Store ──────────────────────────────────────────────────────────
@@ -69,10 +130,12 @@ class ResourceController
             authorize('permission', $this->resource::getCreatePerm());
         }
 
-        [$data, $uploadedFiles] = $this->setupDataForStore($request);
-
-        // Extract relationship data before creating the record
         $relationData = $this->resource::extractRelationshipData($request);
+        try {
+            [$data, $uploadedFiles] = $this->setupDataForStore($request);
+        } catch (UploadException $error) {
+            return $request->prepareValidationError($error->getMessage(), [$error->field => [$error->getMessage()]]);
+        }
 
         $model = $this->resource::getModel();
         try {
@@ -114,10 +177,12 @@ class ResourceController
         $model = $this->resource::getModel();
         $record = $model::findOrFail($id);
 
-        [$data, $uploadedFiles] = $this->setupDataForStore($request, $record);
-
-        // Extract relationship data before updating the record
         $relationData = $this->resource::extractRelationshipData($request);
+        try {
+            [$data, $uploadedFiles] = $this->setupDataForStore($request, $record);
+        } catch (UploadException $error) {
+            return $request->prepareValidationError($error->getMessage(), [$error->field => [$error->getMessage()]]);
+        }
 
         $original = clone $record;
         $record->fill($data);
@@ -164,8 +229,10 @@ class ResourceController
         // Upload paths are managed by the resource, never accepted as arbitrary input.
         foreach ($this->resource::getFileFields() as $field) {
             $name = $field->getName();
-            if ($field->isRequired() && !$request->hasFile($name)
-                && (!$record || empty($record->{$name}) || ($request->has($name) && empty($request->input($name))))) {
+            if (
+                $field->isRequired() && !$request->hasFile($name)
+                && (!$record || empty($record->{$name}) || ($request->has($name) && empty($request->input($name))))
+            ) {
                 $request->mergePostParams([$name => null]);
                 $request->validate([$name => 'required']);
             }
@@ -189,9 +256,14 @@ class ResourceController
             ->toArray();
 
         // Allow Resource to mutate data before creation (e.g. set defaults, generate slugs, etc)
-        $data = $record
-            ? $this->resource::mutateBeforeUpdate($data, $record)
-            : $this->resource::mutateBeforeCreate($data);
+        try {
+            $data = $record
+                ? $this->resource::mutateBeforeUpdate($data, $record)
+                : $this->resource::mutateBeforeCreate($data);
+        } catch (\Throwable $error) {
+            $this->resource::cleanUpFileChanges($uploadedFiles, $record, saved: false);
+            throw $error;
+        }
 
         return [$data, $uploadedFiles];
     }
@@ -271,16 +343,52 @@ class ResourceController
         $model = $this->resource::getModel();
         $record = $model::findOrFail($id);
 
-        $this->resource::beforeDelete($record);
+        $this->deleteRecord($record);
 
-        // Delete associated files
-        $this->resource::deleteRecordFiles($record);
+        return inertia()->back()->with('success', $this->resource::getName()
+            . ($this->resource::usesSoftDeletes() ? ' moved to trash.' : ' deleted successfully.'));
+    }
 
-        $model::destroy($id);
+    public function restore(int $id)
+    {
+        abort_unless($this->resource::usesSoftDeletes(), 404);
+        if ($permission = $this->resource::getRestorePerm())
+            authorize('permission', $permission);
+        $model = $this->resource::getModel();
+        $this->restoreRecord($model::onlyTrashed()->findOrFail($id));
+        return inertia()->back()->with('success', $this->resource::getName() . ' restored successfully.');
+    }
 
-        return inertia()
-            ->back()
-            ->with('success', $this->resource::getName() . ' deleted successfully.');
+    public function forceDelete(int $id)
+    {
+        abort_unless($this->resource::usesSoftDeletes(), 404);
+        if ($permission = $this->resource::getForceDeletePerm())
+            authorize('permission', $permission);
+        $model = $this->resource::getModel();
+        $this->deleteRecord($model::onlyTrashed()->findOrFail($id), permanent: true);
+        return inertia()->back()->with('success', $this->resource::getName() . ' permanently deleted.');
+    }
+
+    protected function deleteRecord(\Spark\Database\Model $record, bool $permanent = false): void
+    {
+        $model = $this->resource::getModel();
+        $permanent ? $this->resource::beforeForceDelete($record) : $this->resource::beforeDelete($record);
+        $deleted = $permanent
+            ? $model::onlyTrashed()->where('id', $record->id)->forceDelete()
+            : $record->remove();
+        if (!$deleted)
+            throw new \RuntimeException('The record could not be deleted.');
+        // Keep uploads for restore. Remove them only after successful physical deletion.
+        if ($permanent || !$this->resource::usesSoftDeletes())
+            $this->resource::deleteRecordFiles($record);
+    }
+
+    protected function restoreRecord(\Spark\Database\Model $record): void
+    {
+        $this->resource::beforeRestore($record);
+        if (!$record->restore())
+            throw new \RuntimeException('The record could not be restored.');
+        $this->resource::afterRestore($record);
     }
 
     // ─── Bulk Action ────────────────────────────────────────────────────
@@ -295,28 +403,47 @@ class ResourceController
         $action = $input->string('action');
         $ids = $input->array('ids');
 
-        // Built-in delete action (with file cleanup)
-        if ($action === 'delete') {
-            if ($this->resource::getDeletePerm()) {
-                authorize('permission', $this->resource::getDeletePerm());
-            }
-
-            $model = $this->resource::getModel();
-
-            // Delete associated files for each record
-            if (!empty($this->resource::getFileFields())) {
-                $records = $model::whereIn('id', $ids)->get();
-                foreach ($records as $record) {
-                    $this->resource::deleteRecordFiles($record);
-                }
-            }
-
-            $model::destroy($ids);
-
-            return inertia()
-                ->back()
-                ->with('success', 'Selected ' . $this->resource::getTitle() . ' deleted successfully.');
+        if (
+            count($ids) > 500 || array_filter($ids, fn($id) =>
+                (!is_int($id) && !is_string($id)) || !preg_match('/^[1-9][0-9]*$/', (string) $id))
+        ) {
+            return $request->prepareValidationError('Invalid record selection.', ['ids' => ['Select between 1 and 500 valid record IDs.']]);
         }
+        $ids = array_values(array_unique(array_map('intval', $ids)));
+        $model = $this->resource::getModel();
+
+        if (in_array($action, ['delete', 'restore', 'force-delete'], true)) {
+            if ($action !== 'delete')
+                abort_unless($this->resource::usesSoftDeletes(), 404);
+            $permission = match ($action) {
+                'restore' => $this->resource::getRestorePerm(),
+                'force-delete' => $this->resource::getForceDeletePerm(),
+                default => $this->resource::getDeletePerm(),
+            };
+            if ($permission)
+                authorize('permission', $permission);
+            $query = $model::whereIn('id', $ids);
+            if ($action !== 'delete')
+                $query->onlyTrashed();
+            $records = $query->get();
+            foreach ($records as $record) {
+                $action === 'restore' ? $this->restoreRecord($record)
+                    : $this->deleteRecord($record, permanent: $action === 'force-delete');
+            }
+            $message = match ($action) {
+                'restore' => 'restored',
+                'force-delete' => 'permanently deleted',
+                default => $this->resource::usesSoftDeletes() ? 'moved to trash' : 'deleted',
+            };
+            return inertia()->back()->with('success', count($records) . ' records ' . $message . '.');
+        }
+
+        // Custom/status actions only receive active IDs, even from a mixed selection.
+        if ($permission = $this->resource::getEditPerm())
+            authorize('permission', $permission);
+        $ids = $model::whereIn('id', $ids)->get()->map(fn($record) => $record->id)->all();
+        if (!$ids)
+            return inertia()->back()->with('info', 'No active records selected.');
 
         // Try resource custom handler first
         $result = $this->resource::handleBulkAction($action, $ids);
@@ -334,20 +461,16 @@ class ResourceController
             }
         }
 
-        if ($matchedAction) {
-            if ($this->resource::getEditPerm()) {
-                authorize('permission', $this->resource::getEditPerm());
-            }
+        if (!$matchedAction)
+            return $request->prepareValidationError('Unknown bulk action.', ['action' => ['Unknown bulk action.']]);
 
-            $callback = $matchedAction->getCallback();
-            if ($callback) {
-                Application::$app->call($callback, ['ids' => $ids]);
-            } else {
-                $model = $this->resource::getModel();
-                $model::whereIn('id', $ids)->update([
-                    $matchedAction->getStatusColumn() ?: 'status' => $action
-                ]);
-            }
+        $callback = $matchedAction->getCallback();
+        if ($callback) {
+            Application::$app->call($callback, ['ids' => $ids]);
+        } else {
+            $model::whereIn('id', $ids)->update([
+                $matchedAction->getStatusColumn() ?: 'status' => $action
+            ]);
         }
 
         return inertia()
@@ -397,6 +520,13 @@ class ResourceController
 
             Route::post($slug, [$controller, 'store'])
                 ->name("$name.store");
+
+            Route::get("$slug/{id}/file", [$controller, 'file'])->name("$name.file");
+
+            if ($resourceClass::usesSoftDeletes()) {
+                Route::post("$slug/{id}/restore", [$controller, 'restore'])->name("$name.restore");
+                Route::delete("$slug/{id}/force-delete", [$controller, 'forceDelete'])->name("$name.force-delete");
+            }
 
             Route::put("$slug/{id}", [$controller, 'update'])
                 ->name("$name.update");

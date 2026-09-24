@@ -36,6 +36,8 @@ class PostsResource extends Resource
     protected static null|string $createPerm = 'posts.create';
     protected static null|string $editPerm = 'posts.edit';
     protected static null|string $deletePerm = 'posts.delete';
+    protected static null|string $restorePerm = 'posts.restore';
+    protected static null|string $forceDeletePerm = 'posts.force_delete';
 
     // ─── Drawer ─────────────────────────────────────────────────────────
 
@@ -135,7 +137,7 @@ class PostsResource extends Resource
     public static function columns(): array
     {
         return [
-            Table\Column::make('title')
+            Table\Column::make('title')->sortable()
                 ->clickToEdit()
                 ->truncate(45),
 
@@ -148,7 +150,7 @@ class PostsResource extends Resource
                 ->avatar('avatar_url')
                 ->display(['display_name']),
 
-            Table\Column::make('status')
+            Table\Column::make('status')->sortable()
                 ->badge()
                 ->badgeMap([
                     'draft' => ['label' => 'Draft', 'variant' => 'secondary'],
@@ -167,16 +169,16 @@ class PostsResource extends Resource
                 ->truncate(60)
                 ->hidden(),
 
-            Table\Column::make('published_at')
+            Table\Column::make('published_at')->sortable()
                 ->header('Published')
                 ->date(),
 
-            Table\Column::make('scheduled_at')
+            Table\Column::make('scheduled_at')->sortable()
                 ->header('Scheduled')
                 ->date()
                 ->hidden(),
 
-            Table\Column::make('created_at')
+            Table\Column::make('created_at')->sortable()
                 ->header('Created')
                 ->hidden()
                 ->date(),

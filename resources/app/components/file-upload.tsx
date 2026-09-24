@@ -18,6 +18,7 @@ export interface FileUploadProps {
   maxFileSize?: number;
   /** Media URL prefix for displaying existing files (e.g. "/uploads/") */
   mediaUrl?: string;
+  fileUrls?: Record<string, string>;
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -50,6 +51,7 @@ function itemName(item: FileItem): string {
 const FilePreview = React.memo(function FilePreview({
   item,
   mediaUrl,
+  fileUrls,
   onRemove,
   onReplace,
   disabled,
@@ -57,6 +59,7 @@ const FilePreview = React.memo(function FilePreview({
 }: {
   item: FileItem;
   mediaUrl?: string;
+  fileUrls?: Record<string, string>;
   onRemove: () => void;
   onReplace?: () => void;
   disabled?: boolean;
@@ -67,12 +70,12 @@ const FilePreview = React.memo(function FilePreview({
   const [url, setUrl] = React.useState<string | null>(null);
 
   React.useEffect(() => {
-    const u = buildPreviewUrl(item, mediaUrl);
+    const u = typeof item === "string" && fileUrls?.[item] ? fileUrls[item] : buildPreviewUrl(item, mediaUrl);
     setUrl(u);
     return () => {
       if (isNew && u) URL.revokeObjectURL(u);
     };
-  }, [item, mediaUrl, isNew]);
+  }, [item, mediaUrl, fileUrls, isNew]);
 
   return (
     <div className="relative flex items-start gap-3 rounded-lg border p-3 bg-muted/30">
@@ -159,6 +162,7 @@ export const FileUpload = React.memo<FileUploadProps>(
     acceptedTypes,
     maxFileSize,
     mediaUrl,
+  fileUrls,
   }) => {
     const inputRef = React.useRef<HTMLInputElement>(null);
     const [dragOver, setDragOver] = React.useState(false);
@@ -335,6 +339,7 @@ export const FileUpload = React.memo<FileUploadProps>(
             }
             item={item}
             mediaUrl={mediaUrl}
+            fileUrls={fileUrls}
             disabled={disabled}
             onRemove={multiple ? () => handleRemoveAt(i) : handleRemoveSingle}
             onReplace={!multiple ? () => inputRef.current?.click() : undefined}

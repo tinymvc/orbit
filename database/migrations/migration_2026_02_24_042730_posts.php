@@ -17,6 +17,7 @@ return new class {
             $table->enum('status', ['draft', 'published', 'archived', 'scheduled'])->default('draft');
             $table->timestamp('published_at')->nullable();
             $table->timestamp('scheduled_at')->nullable();
+            $table->softDeletes();
             $table->timestamps();
             $table->index('title');
             $table->index('excerpt');
@@ -25,6 +26,7 @@ return new class {
             $table->index('published_at');
             $table->index(['status', 'published_at']);
             $table->index(['status', 'scheduled_at']);
+            $table->index('deleted_at', 'posts_deleted_at_index');
         });
     }
 

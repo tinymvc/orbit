@@ -25,6 +25,7 @@ class Column implements Arrayable
     protected bool $clickToEdit = false;
     protected int|bool|null $truncate = null;
     protected bool $visible = true;
+    protected bool $sortable = false;
     protected null|string $className = null;
     protected null|string $accessor = null;
     protected null|string $imageSize = null;
@@ -272,6 +273,17 @@ class Column implements Arrayable
         return $this->key;
     }
 
+    public function sortable(bool $enabled = true): static
+    {
+        $this->sortable = $enabled;
+        return $this;
+    }
+
+    public function isSortable(): bool
+    {
+        return $this->sortable;
+    }
+
     public function isVisible(): bool
     {
         return $this->visible;
@@ -281,7 +293,7 @@ class Column implements Arrayable
 
     public function toArray(): array
     {
-        $arr = ['key' => $this->key];
+        $arr = ['key' => $this->key, 'sortable' => $this->sortable];
 
         if ($this->header !== null)
             $arr['header'] = $this->header;
