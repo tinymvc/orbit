@@ -6,7 +6,8 @@ use App\Http\Resources\PostsResource;
 use App\Models\Category;
 use App\Models\Post;
 use App\Services\Bread\ResourceController;
-use Spark\Facades\Disk;
+use Spark\Facades\Storage;
+use Spark\Database\Schema\Schema;
 use Tests\DatabaseTestCase;
 use Tests\Fixtures\UploadResource;
 
@@ -25,16 +26,17 @@ final class BreadSoftDeleteTest extends DatabaseTestCase
         ]);
     }
 
-    public function test_migration_preserves_existing_posts_and_supports_rollback(): void
+    public function test_posts_migration_includes_soft_deletes_and_supports_rollback(): void
     {
+        $migration = require dirname(__DIR__, 2) . '/database/migrations/migration_2026_02_24_042730_posts.php';
+        $migration->down();
+        $this->assertFalse(Schema::hasTable('posts'));
+        $migration->up();
+        $this->assertTrue(Schema::hasColumn('posts', 'deleted_at'));
         $user = $this->signIn();
         $post = $this->makePost($user->id, 'existing');
-        $migration = require dirname(__DIR__, 2) . '/database/migrations/migration_2026_09_24_130000_posts_soft_deletes.php';
-        $migration->down();
-        $this->assertDatabaseHas('posts', ['id' => $post->id, 'title' => 'Existing', 'content' => 'Body']);
-        $migration->up();
         $this->assertFalse(Post::findOrFail($post->id)->trashed());
-        $this->assertDatabaseHas('posts', ['id' => $post->id, 'title' => 'Existing', 'content' => 'Body']);
+        $this->assertDatabaseHas('posts', ['id' => $post->id, 'deleted_at' => null]);
     }
 
     public function test_trash_views_preserve_search_filters_sort_and_pagination(): void
@@ -65,7 +67,7 @@ final class BreadSoftDeleteTest extends DatabaseTestCase
     public function test_trash_and_restore_preserve_uploads_and_category_links_until_permanent_deletion(): void
     {
         $user = $this->signIn();
-        Disk::disk('public')->put('posts/keep.txt', 'keep');
+        Storage::disk('public')->put('posts/keep.txt', 'keep');
         $post = $this->makePost($user->id, 'keep', ['thumbnail' => 'posts/keep.txt']);
         $category = Category::create(['name' => 'News', 'slug' => 'news']);
         $post->categories()->sync([$category->id]);
@@ -73,17 +75,17 @@ final class BreadSoftDeleteTest extends DatabaseTestCase
         $this->delete($url)->assertStatus(303);
         $this->assertFalse(Post::find($post->id));
         $this->assertTrue(Post::onlyTrashed()->findOrFail($post->id)->trashed());
-        $this->assertTrue(Disk::disk('public')->exists('posts/keep.txt'));
+        $this->assertTrue(Storage::disk('public')->exists('posts/keep.txt'));
         $this->assertDatabaseCount('categories_posts', 1);
         $this->post($url . '/restore')->assertStatus(302);
         $this->assertFalse(Post::findOrFail($post->id)->trashed());
         $this->assertDatabaseCount('categories_posts', 1);
-        $this->assertTrue(Disk::disk('public')->exists('posts/keep.txt'));
+        $this->assertTrue(Storage::disk('public')->exists('posts/keep.txt'));
         $this->delete($url)->assertStatus(303);
         $this->delete($url . '/force-delete')->assertStatus(303);
         $this->assertDatabaseCount('posts', 0);
         $this->assertDatabaseCount('categories_posts', 0);
-        $this->assertFalse(Disk::disk('public')->exists('posts/keep.txt'));
+        $this->assertFalse(Storage::disk('public')->exists('posts/keep.txt'));
         $this->assertDatabaseCount('categories', 1);
     }
 
@@ -154,18 +156,18 @@ final class BreadSoftDeleteTest extends DatabaseTestCase
         UploadResource::$disk = 'local';
         try {
             ResourceController::routes(UploadResource::class)->prefix('files')->middleware('auth');
-            Disk::disk('local')->put('posts/private.txt', 'private');
-            Disk::disk('public')->put('posts/private.txt', 'different disk');
+            Storage::disk('local')->put('posts/private.txt', 'private');
+            Storage::disk('public')->put('posts/private.txt', 'different disk');
             $post = $this->makePost($user->id, 'private', ['thumbnail' => 'posts/private.txt']);
             $url = '/files/documents/' . $post->id;
             $this->post('/files/documents/bulk-action', ['action' => 'delete', 'ids' => [$post->id]])->assertStatus(302);
             $this->get($url . '/file?field=thumbnail&path=posts%2Fprivate.txt')->assertOk()->assertContent('private');
             $this->post('/files/documents/bulk-action', ['action' => 'restore', 'ids' => [$post->id]])->assertStatus(302);
-            $this->assertTrue(Disk::disk('local')->exists('posts/private.txt'));
+            $this->assertTrue(Storage::disk('local')->exists('posts/private.txt'));
             $this->delete($url)->assertStatus(303);
             $this->post('/files/documents/bulk-action', ['action' => 'force-delete', 'ids' => [$post->id]])->assertStatus(302);
-            $this->assertFalse(Disk::disk('local')->exists('posts/private.txt'));
-            $this->assertTrue(Disk::disk('public')->exists('posts/private.txt'));
+            $this->assertFalse(Storage::disk('local')->exists('posts/private.txt'));
+            $this->assertTrue(Storage::disk('public')->exists('posts/private.txt'));
             $this->get($url . '/file?field=thumbnail&path=posts%2Fprivate.txt')->assertNotFound();
         } finally {
             UploadResource::$disk = 'public';

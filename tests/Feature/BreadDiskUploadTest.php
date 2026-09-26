@@ -8,13 +8,16 @@ final class BreadDiskUploadTest extends TestCase
 {
     public function test_local_public_and_s3_uploads_and_partial_batch_rollback(): void
     {
-        if (!extension_loaded('curl') || !function_exists('proc_open')) $this->markTestSkipped('Requires cURL and proc_open.');
+        if (!extension_loaded('curl') || !function_exists('proc_open'))
+            $this->markTestSkipped('Requires cURL and proc_open.');
         $processes = [];
         mkdir("$this->storagePath/s3");
         try {
             $s3 = $this->startServer('s3-server.php', ['ORBIT_TEST_S3_STORAGE' => "$this->storagePath/s3"], $processes);
-            $http = $this->startServer('upload-server.php', ['ORBIT_UPLOAD_TEST_STORAGE' => $this->storagePath,
-                'ORBIT_TEST_S3_ENDPOINT' => "http://$s3"], $processes);
+            $http = $this->startServer('upload-server.php', [
+                'ORBIT_UPLOAD_TEST_STORAGE' => $this->storagePath,
+                'ORBIT_TEST_S3_ENDPOINT' => "http://$s3"
+            ], $processes);
             $source = "$this->storagePath/source.txt";
             file_put_contents($source, 'disk upload');
             foreach (['public' => 'uploads/posts', 'local' => 'private/posts', 's3' => 's3'] as $disk => $directory) {
@@ -50,9 +53,12 @@ final class BreadDiskUploadTest extends TestCase
             $log = file_get_contents("$this->storagePath/s3/requests.log");
             $this->assertTrue(str_contains($log, 'AWS4-HMAC-SHA256 Credential=test-key/'));
             $this->assertTrue(str_contains($log, 'DELETE rollback-'));
-            $this->assertSame([], glob("$this->storagePath/temp/disk-uploads/posts/*"));
+            $this->assertSame([], glob("$this->storagePath/temp/storage-uploads/posts/*"));
         } finally {
-            foreach ($processes as $process) { proc_terminate($process); proc_close($process); }
+            foreach ($processes as $process) {
+                proc_terminate($process);
+                proc_close($process);
+            }
         }
     }
 
@@ -62,15 +68,22 @@ final class BreadDiskUploadTest extends TestCase
         $this->assertTrue($socket !== false, $error);
         $address = stream_socket_get_name($socket, false);
         fclose($socket);
-        $process = proc_open([PHP_BINARY, '-S', $address, dirname(__DIR__) . '/Fixtures/' . $fixture],
+        $process = proc_open(
+            [PHP_BINARY, '-S', $address, dirname(__DIR__) . '/Fixtures/' . $fixture],
             [0 => ['pipe', 'r'], 1 => ['file', "$this->storagePath/$fixture.log", 'a'], 2 => ['file', "$this->storagePath/$fixture.log", 'a']],
-            $pipes, dirname(__DIR__, 2), [...getenv(), ...$environment]);
+            $pipes,
+            dirname(__DIR__, 2),
+            [...getenv(), ...$environment]
+        );
         $this->assertTrue(is_resource($process));
         $processes[] = $process;
         fclose($pipes[0]);
         for ($attempt = 0; $attempt < 60; $attempt++) {
             $connection = @stream_socket_client("tcp://$address", $errno, $error, 0.1);
-            if ($connection) { fclose($connection); return $address; }
+            if ($connection) {
+                fclose($connection);
+                return $address;
+            }
             usleep(50000);
         }
         $this->fail('Fixture server did not start.');
@@ -79,12 +92,18 @@ final class BreadDiskUploadTest extends TestCase
     private function upload(string $url, array $data): array
     {
         $curl = curl_init($url);
-        curl_setopt_array($curl, [CURLOPT_POST => true, CURLOPT_POSTFIELDS => $data,
-            CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 10]);
+        curl_setopt_array($curl, [
+            CURLOPT_POST => true,
+            CURLOPT_POSTFIELDS => $data,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT => 10
+        ]);
         try {
             $body = curl_exec($curl);
             $this->assertTrue($body !== false, curl_error($curl));
             return [curl_getinfo($curl, CURLINFO_RESPONSE_CODE), json_decode($body, true, flags: JSON_THROW_ON_ERROR)];
-        } finally { curl_close($curl); }
+        } finally {
+            curl_close($curl);
+        }
     }
 }

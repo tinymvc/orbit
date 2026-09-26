@@ -28,7 +28,7 @@ class FileUpload extends Field
     protected bool $multiple = false;
     protected ?string $disk = 'public';
 
-    /** Choose a configured disk; null uses disk.default. Existing fields remain public. */
+    /** Choose a configured disk; null uses storage.default. Existing fields remain public. */
     public function disk(?string $disk): static
     {
         $this->disk = $disk;

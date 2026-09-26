@@ -4,7 +4,7 @@ namespace App\Services\Bread;
 
 use App\Services\Bread\Form;
 use Spark\Facades\Route;
-use Spark\Facades\Disk;
+use Spark\Facades\Storage;
 use Spark\Foundation\Application;
 use Spark\Http\Request;
 use Spark\Http\Routing\RouteGroup;
@@ -104,9 +104,9 @@ class ResourceController
             $path = $input['path'];
             abort_unless(in_array($path, $this->resource::filePaths($field, $record->{$field->getName()}), true), 404);
             abort_if((bool) preg_match('#^https?://#i', $path), 404);
-            $disk = Disk::disk($field->getDisk());
-            $diskName = $field->getDisk() ?? config('disk.default');
-            if (config("disk.disks.$diskName.driver") === 's3') {
+            $disk = Storage::disk($field->getDisk());
+            $diskName = $field->getDisk() ?? config('storage.default');
+            if (config("storage.disks.$diskName.driver") === 's3') {
                 return redirect($disk->temporaryUrl($path, 300));
             }
             abort_unless($disk->exists($path), 404);

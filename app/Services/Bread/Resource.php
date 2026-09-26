@@ -12,7 +12,7 @@ use Spark\Database\Model;
 use Spark\Database\QueryBuilder;
 use Spark\Foundation\Application;
 use Spark\Http\Request;
-use Spark\Facades\Disk;
+use Spark\Facades\Storage;
 use function count;
 use function in_array;
 use function is_array;
@@ -122,15 +122,29 @@ abstract class Resource
     }
 
     /** Override to configure the reference BREAD editor and table features. */
-    public static function editor(): array { return ['style' => 'drawer', 'width' => static::$drawerWidth]; }
-    public static function pageSizeOptions(): array { return [10, 20, 30, 40, 50, 100, 200, 500]; }
-    public static function tableStateStorageKey(): ?string { return null; }
+    public static function editor(): array
+    {
+        return ['style' => 'drawer', 'width' => static::$drawerWidth];
+    }
+    public static function pageSizeOptions(): array
+    {
+        return [10, 20, 30, 40, 50, 100, 200, 500];
+    }
+    public static function tableStateStorageKey(): ?string
+    {
+        return null;
+    }
     /** Explicit allowlist of scalar database fields: key, label, type, optional options. */
-    public static function advancedFilterFields(): array { return []; }
+    public static function advancedFilterFields(): array
+    {
+        return [];
+    }
     public static function sortableColumns(): array
     {
-        return array_values(array_map(fn($column) => $column->getKey(),
-            array_filter(static::columns(), fn($column) => $column instanceof Column && $column->isSortable())));
+        return array_values(array_map(
+            fn($column) => $column->getKey(),
+            array_filter(static::columns(), fn($column) => $column instanceof Column && $column->isSortable())
+        ));
     }
 
     /** Soft deletes are enabled by the model, including custom deletion columns. */
@@ -139,8 +153,14 @@ abstract class Resource
         return (new (static::getModel()))->usesSoftDeletes();
     }
 
-    public static function getRestorePerm(): ?string { return static::$restorePerm ?? static::$deletePerm; }
-    public static function getForceDeletePerm(): ?string { return static::$forceDeletePerm ?? static::$deletePerm; }
+    public static function getRestorePerm(): ?string
+    {
+        return static::$restorePerm ?? static::$deletePerm;
+    }
+    public static function getForceDeletePerm(): ?string
+    {
+        return static::$forceDeletePerm ?? static::$deletePerm;
+    }
 
     // ─── Dynamic data & hooks ─────────────────────────────────────────────
 
@@ -180,12 +200,15 @@ abstract class Resource
         foreach (static::filters() as $filter) {
             $key = $filter instanceof Filter ? $filter->getKey() : ($filter['key'] ?? '');
             $queryKey = $filter instanceof Filter ? $filter->getQueryKey() : ($filter['queryKey'] ?? $key);
-            if (!$request->has($queryKey)) continue;
+            if (!$request->has($queryKey))
+                continue;
             $value = $request->input($queryKey);
-            if ($value === '' || $value === null || $value === []) continue;
+            if ($value === '' || $value === null || $value === [])
+                continue;
             $multiple = $filter instanceof Filter ? $filter->isMultiple() : ($filter['multiple'] ?? false);
             $exclude = $filter instanceof Filter ? $filter->isExclude() : (($filter['variant'] ?? '') === 'exclude');
-            if ($multiple) $value = is_array($value) ? $value : explode(',', (string) $value);
+            if ($multiple)
+                $value = is_array($value) ? $value : explode(',', (string) $value);
             if ((!$multiple && !is_scalar($value)) || ($multiple && (count($value) > 100 || count(array_filter($value, 'is_scalar')) !== count($value)))) {
                 throw new \InvalidArgumentException('Invalid filter value.');
             }
@@ -261,9 +284,15 @@ abstract class Resource
     }
 
     /** Trash lifecycle hooks apply to individual and bulk actions alike. */
-    public static function beforeRestore($record): void {}
-    public static function afterRestore($record): void {}
-    public static function beforeForceDelete($record): void {}
+    public static function beforeRestore($record): void
+    {
+    }
+    public static function afterRestore($record): void
+    {
+    }
+    public static function beforeForceDelete($record): void
+    {
+    }
 
     /**
      * Handle a custom bulk action.
@@ -326,7 +355,8 @@ abstract class Resource
                 $name = $field->getName();
                 $payload = $request->file($name);
                 $hasUpload = is_array($payload) && ($payload['error'] ?? UPLOAD_ERR_OK) !== UPLOAD_ERR_NO_FILE;
-                if (!$request->has($name) && !$hasUpload) continue;
+                if (!$request->has($name) && !$hasUpload)
+                    continue;
 
                 $old = static::filePaths($field, $existingRecord?->{$name});
                 if ($field->isMultiple()) {
@@ -339,9 +369,10 @@ abstract class Resource
                     }
                     continue;
                 }
-                if (!$hasUpload) continue;
+                if (!$hasUpload)
+                    continue;
 
-                $uploader = Disk::disk($field->getDisk())->uploader(
+                $uploader = Storage::disk($field->getDisk())->uploader(
                     uploadTo: $field->getUploadTo() ?? '',
                     extensions: $field->getAcceptedTypes(),
                     multiple: false,
@@ -362,7 +393,8 @@ abstract class Resource
                         foreach (['tmp_name', 'size', 'error', 'type'] as $attribute) {
                             $file[$attribute] = $payload[$attribute][$key] ?? null;
                         }
-                        if ($file['error'] !== UPLOAD_ERR_NO_FILE) $files[] = $file;
+                        if ($file['error'] !== UPLOAD_ERR_NO_FILE)
+                            $files[] = $file;
                     }
                 }
                 foreach ($files as $file) {
@@ -409,14 +441,15 @@ abstract class Resource
                 if (preg_match('#^https?://#i', $path)) {
                     continue;
                 }
-                Disk::disk($field->getDisk())->delete($path);
+                Storage::disk($field->getDisk())->delete($path);
             }
         }
     }
 
     public static function filePaths(Form\FileUpload $field, mixed $value): array
     {
-        if ($field->isMultiple() && is_string($value)) $value = json_decode($value, true) ?: [];
+        if ($field->isMultiple() && is_string($value))
+            $value = json_decode($value, true) ?: [];
         return array_values(array_filter((array) $value, fn($path) => is_string($path) && $path !== ''));
     }
 
@@ -431,11 +464,12 @@ abstract class Resource
                     $url = $path;
                 } elseif ($field->getMediaUrl() !== null) {
                     $url = rtrim($field->getMediaUrl(), '/') . '/' . implode('/', array_map('rawurlencode', explode('/', $path)));
-                } elseif (config('disk.disks.' . ($field->getDisk() ?? config('disk.default')) . '.visibility') === 'public') {
-                    $url = Disk::disk($field->getDisk())->url($path);
+                } elseif (config('storage.disks.' . ($field->getDisk() ?? config('storage.default')) . '.visibility') === 'public') {
+                    $url = Storage::disk($field->getDisk())->url($path);
                 } else {
                     $url = static::getUrl() . '/' . $data['id'] . '/file?' . http_build_query([
-                        'field' => $field->getName(), 'path' => $path,
+                        'field' => $field->getName(),
+                        'path' => $path,
                     ]);
                 }
                 $data['__fileUrls'][$field->getName()][$path] = $url;
@@ -552,8 +586,8 @@ abstract class Resource
     {
         return array_map(
             fn($item) => $item instanceof Arrayable
-            ? $item->toArray()
-            : $item,
+                ? $item->toArray()
+                : $item,
             $items
         );
     }
@@ -565,9 +599,12 @@ abstract class Resource
     {
         $bulkActions = static::serialise(static::bulkActions());
         if (static::usesSoftDeletes()) {
-            $bulkActions = array_values(array_filter($bulkActions,
-                fn($action) => !in_array($action['action'], ['delete', 'restore', 'force-delete'], true)));
-            $bulkActions = [...$bulkActions,
+            $bulkActions = array_values(array_filter(
+                $bulkActions,
+                fn($action) => !in_array($action['action'], ['delete', 'restore', 'force-delete'], true)
+            ));
+            $bulkActions = [
+                ...$bulkActions,
                 ['action' => 'delete', 'label' => 'Move to trash', 'variant' => 'destructive'],
                 ['action' => 'restore', 'label' => 'Restore', 'variant' => 'default'],
                 ['action' => 'force-delete', 'label' => 'Delete permanently', 'variant' => 'destructive'],

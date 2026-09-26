@@ -489,7 +489,7 @@ Form\DatePicker::make('birth_date')
 
 ```php
 Form\FileUpload::make('thumbnail')
-    ->disk('public')                      // Any disk in config/disk.php
+    ->disk('public')                      // Any disk in config/storage.php
     ->uploadTo('posts')                    // Directory within the selected disk
     ->acceptedTypes(['jpg', 'png', 'webp']) // Allowed extensions
     ->maxFileSize(4096)                    // Max size in KB (4MB)
@@ -778,14 +778,14 @@ public static function updateRules(int $id): null|array
 
 ### File Uploads
 
-File fields use `Spark\Facades\Disk` for uploading and deleting files. Choose any
-named disk from `config/disk.php` in the resource definition:
+File fields use `Spark\Facades\Storage` for uploading and deleting files. Choose any
+named disk from `config/storage.php` in the resource definition:
 
 ```php
 Form\FileUpload::make('thumbnail')->disk('public')->uploadTo('posts');
 Form\FileUpload::make('documents')->disk('local')->uploadTo('documents')->multiple();
 Form\FileUpload::make('assets')->disk('s3')->uploadTo('assets')->multiple();
-Form\FileUpload::make('file')->disk(null); // Use FILESYSTEM_DISK / disk.default
+Form\FileUpload::make('file')->disk(null); // Use FILESYSTEM_DISK / storage.default
 ```
 
 Existing fields default to `public`, preserving `storage/uploads` and existing
@@ -799,13 +799,13 @@ new uploads after failed batches or saves. Image resize/compression settings are
 passed to TinyCore's disk uploader (JPEG, PNG and GIF transforms in the installed
 version). Multiple-file columns should use a JSON/array model cast.
 
-Stored keys remain separate from preview URLs. Public disks use `Disk::url()`;
+Stored keys remain separate from preview URLs. Public disks use `Storage::url()`;
 private local files use an authenticated resource endpoint and streamed responses.
-Private S3 previews redirect to `Disk::temporaryUrl()` links lasting five minutes.
+Private S3 previews redirect to `Storage::temporaryUrl()` links lasting five minutes.
 Preview requests check the resource's browse permission and exact record/field/key
 association. Existing external URLs and explicit `mediaUrl()` overrides remain
 supported. Configure AWS credentials, bucket, region, and optional endpoint in
-`config/disk.php`/environment variables. S3-compatible providers use the same disk.
+`config/storage.php`/environment variables. S3-compatible providers use the same disk.
 
 ### Soft Delete and Trash
 

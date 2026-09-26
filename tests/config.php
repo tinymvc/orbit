@@ -16,7 +16,7 @@ return [
         'temp_dir' => "$storage/temp",
         'upload_dir' => "$storage/uploads",
     ],
-    'disk' => [
+    'storage' => [
         'default' => 'local',
         'disks' => [
             'local' => ['driver' => 'local', 'root' => "$storage/app"],

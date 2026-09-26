@@ -25,13 +25,16 @@ final class FrameworkIntegrationTest extends TestCase
         try {
             $queue->work(once: true, timeout: 5, sleep: 0);
         } finally {
-            while (ob_get_level() > $level) { ob_end_clean(); }
+            while (ob_get_level() > $level) {
+                ob_end_clean();
+            }
         }
         $this->assertSame([], $queue->getFailedJobs());
         $this->assertSame([], $queue->getJobs(status: 'pending'));
-        $this->assertSame('completed', disk()->get('queue-ran.txt'));
-        $this->assertTrue(str_starts_with(disk()->path('queue-ran.txt'), $this->storagePath));
-        $this->assertSame('/uploads/test.txt', disk('public')->url('test.txt'));
+        $this->assertSame('completed', storage()->get('queue-ran.txt'));
+        $this->assertTrue(str_starts_with(storage()->path('queue-ran.txt'), $this->storagePath));
+        $this->assertSame('/uploads/test.txt', storage('public')->url('test.txt'));
+        $this->assertTrue(str_starts_with(storage('public')->path('test.txt'), $this->storagePath . '/'));
     }
 
     public function test_cors_preflight_and_normal_request_follow_config(): void
@@ -41,13 +44,19 @@ final class FrameworkIntegrationTest extends TestCase
             $called = true;
             return json(['ok' => true]);
         })->middleware('cors');
-        $this->options('/cors-test', headers: ['Origin' => 'https://example.test',
-            'Access-Control-Request-Method' => 'GET', 'Access-Control-Request-Headers' => 'Content-Type'])
+        $this->options('/cors-test', headers: [
+            'Origin' => 'https://example.test',
+            'Access-Control-Request-Method' => 'GET',
+            'Access-Control-Request-Headers' => 'Content-Type'
+        ])
             ->assertNoContent()->assertHeader('Access-Control-Allow-Origin', 'https://example.test')
             ->assertHeader('Access-Control-Allow-Credentials', 'true');
         $this->assertFalse($called);
-        $this->options('/cors-test', headers: ['Origin' => 'https://example.test',
-            'Access-Control-Request-Method' => 'GET', 'Access-Control-Request-Headers' => 'X-Not-Allowed'])
+        $this->options('/cors-test', headers: [
+            'Origin' => 'https://example.test',
+            'Access-Control-Request-Method' => 'GET',
+            'Access-Control-Request-Headers' => 'X-Not-Allowed'
+        ])
             ->assertForbidden();
         $this->assertFalse($called);
         $this->get('/cors-test', ['Origin' => 'https://example.test'])->assertOk()
