@@ -6,6 +6,16 @@ use Spark\Database\Schema\Schema;
 return new class {
     public function up(): void
     {
+        Schema::create('categories', function (Blueprint $table) {
+            $table->id();
+            $table->string('name', 100);
+            $table->string('slug', 120)->unique();
+            $table->string('description', 255)->nullable();
+            $table->timestamps();
+            $table->index('name');
+            $table->index(['name', 'description']);
+        });
+
         Schema::create('posts', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
@@ -28,10 +38,18 @@ return new class {
             $table->index(['status', 'scheduled_at']);
             $table->index('deleted_at', 'posts_deleted_at_index');
         });
+
+        Schema::create('categories_posts', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('post_id')->constrained('posts')->cascadeOnDelete();
+            $table->foreignId('category_id')->constrained('categories')->cascadeOnDelete();
+        });
     }
 
     public function down(): void
     {
+        Schema::dropIfExists('categories_posts');
+        Schema::dropIfExists('categories');
         Schema::dropIfExists('posts');
     }
 };
