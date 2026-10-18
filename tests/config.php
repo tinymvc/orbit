@@ -28,11 +28,22 @@ return [
         'connections' => ['sqlite' => ['file' => ':memory:']],
     ],
     'cache' => [
-        'driver' => 'sqlite',
-        'connections' => ['sqlite' => ['path' => "$storage/cache"]],
+        'default' => 'file',
+        'connections' => [
+            'file' => [
+                'driver' => 'file',
+                'path' => "$storage/cache",
+                'lock_path' => "$storage/locks",
+            ],
+        ],
     ],
     'queue' => [
-        'driver' => 'sqlite',
-        'connections' => ['sqlite' => ['path' => "$storage/queue/jobs.db"]],
+        'default' => 'file',
+        'connections' => [
+            'file' => [
+                'driver' => 'file',
+                'path' => "$storage/queue",
+            ],
+        ],
     ],
 ];

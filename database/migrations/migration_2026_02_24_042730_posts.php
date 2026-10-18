@@ -22,8 +22,8 @@ return new class {
             $table->string('title');
             $table->string('slug')->unique();
             $table->string('thumbnail')->nullable();
-            $table->string('excerpt');
-            $table->text('content');
+            $table->string('excerpt')->nullable();
+            $table->text('content')->nullable();
             $table->enum('status', ['draft', 'published', 'archived', 'scheduled'])->default('draft');
             $table->timestamp('published_at')->nullable();
             $table->timestamp('scheduled_at')->nullable();

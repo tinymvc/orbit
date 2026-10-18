@@ -384,7 +384,7 @@
             border: 1px solid rgba(255, 255, 255, .07);
             border-radius: .75rem;
             overflow: hidden;
-			text-align: left;
+            text-align: left;
         }
 
         .install-header {
@@ -515,7 +515,10 @@
             <div class="nav-links">
                 <a href="https://github.com/tinymvc/orbit" class="nav-link" target="_blank">GitHub</a>
                 <a href="https://packagist.org/packages/tinymvc/orbit" class="nav-link" target="_blank">Packagist</a>
-                <a href="/admin" class="nav-links nav-cta">Dashboard <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width:16px"><path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" /></svg></a>
+                <a href="/admin" class="nav-links nav-cta">Dashboard <svg xmlns="http://www.w3.org/2000/svg"
+                        fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width:16px">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+                    </svg></a>
             </div>
         </nav>
 
@@ -674,7 +677,7 @@
         <!-- Footer -->
         <footer>
             Built with ♥ by <a href="https://github.com/shahinmoyshan" target="_blank">Shahin Moyshan</a> · Powered by
-            <a href="https://github.com/tinymvc/tinycore" target="_blank">TinyMVC</a> · MIT License
+            <a href="https://tinymvc.github.io" target="_blank">TinyMvc</a> · MIT License
         </footer>
 
     </div>

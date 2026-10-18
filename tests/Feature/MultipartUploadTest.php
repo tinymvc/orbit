@@ -64,12 +64,8 @@ final class MultipartUploadTest extends TestCase
         $curl = curl_init("http://$address/");
         curl_setopt_array($curl, [CURLOPT_POST => true, CURLOPT_POSTFIELDS => $data,
             CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 10]);
-        try {
-            $response = curl_exec($curl);
-            $this->assertTrue($response !== false, curl_error($curl));
-            return [curl_getinfo($curl, CURLINFO_RESPONSE_CODE), json_decode($response, true, flags: JSON_THROW_ON_ERROR)];
-        } finally {
-            curl_close($curl);
-        }
+        $response = curl_exec($curl);
+        $this->assertTrue($response !== false, curl_error($curl));
+        return [curl_getinfo($curl, CURLINFO_RESPONSE_CODE), json_decode($response, true, flags: JSON_THROW_ON_ERROR)];
     }
 }

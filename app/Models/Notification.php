@@ -6,6 +6,8 @@ use Spark\Database\Model;
 
 class Notification extends Model
 {
+    protected const UPDATED_AT = null;
+
     public function user(): \Spark\Database\Relation\BelongsTo
     {
         return $this->belongsTo(User::class);

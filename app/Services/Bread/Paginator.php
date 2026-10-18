@@ -14,4 +14,18 @@ final class Paginator extends \Spark\Utils\Paginator
     {
         return max(1, $this->requestedPage);
     }
+
+    public function toArray(): array
+    {
+        return [
+            ...parent::toArray(),
+            'page' => $this->page(),
+            'pages' => $this->pages(),
+            'limit' => $this->limit(),
+            'offset' => $this->offset(),
+            'first_item' => $this->firstItem(),
+            'last_item' => $this->lastItem(),
+            'keyword' => $this->keyword,
+        ];
+    }
 }

@@ -354,7 +354,11 @@ abstract class Resource
             foreach (static::getFileFields() as $field) {
                 $name = $field->getName();
                 $payload = $request->file($name);
-                $hasUpload = is_array($payload) && ($payload['error'] ?? UPLOAD_ERR_OK) !== UPLOAD_ERR_NO_FILE;
+                $hasUpload = is_array($payload) && (
+                    isset($payload[0])
+                        ? count($payload) > 0
+                        : ($payload['error'] ?? UPLOAD_ERR_OK) !== UPLOAD_ERR_NO_FILE
+                );
                 if (!$request->has($name) && !$hasUpload)
                     continue;
 
@@ -384,17 +388,21 @@ abstract class Resource
                 // Upload one file at a time so a later failure can roll back every new key.
                 $files = [$payload];
                 if ($field->isMultiple()) {
-                    if (!is_array($payload['name'] ?? null)) {
-                        throw new \Spark\Exceptions\Utils\UploaderUtilException('Invalid multiple upload payload.');
-                    }
-                    $files = [];
-                    foreach ($payload['name'] as $key => $filename) {
-                        $file = ['name' => $filename];
-                        foreach (['tmp_name', 'size', 'error', 'type'] as $attribute) {
-                            $file[$attribute] = $payload[$attribute][$key] ?? null;
+                    if (isset($payload[0]) && is_array($payload[0])) {
+                        $files = array_filter($payload, fn($file) => ($file['error'] ?? UPLOAD_ERR_OK) !== UPLOAD_ERR_NO_FILE);
+                    } elseif (is_array($payload['name'] ?? null)) {
+                        $files = [];
+                        foreach ($payload['name'] as $key => $filename) {
+                            $file = ['name' => $filename];
+                            foreach (['tmp_name', 'size', 'error', 'type'] as $attribute) {
+                                $file[$attribute] = $payload[$attribute][$key] ?? null;
+                            }
+                            if (($file['error'] ?? UPLOAD_ERR_OK) !== UPLOAD_ERR_NO_FILE) {
+                                $files[] = $file;
+                            }
                         }
-                        if ($file['error'] !== UPLOAD_ERR_NO_FILE)
-                            $files[] = $file;
+                    } else {
+                        throw new \Spark\Exceptions\Utils\UploaderException('Invalid multiple upload payload.');
                     }
                 }
                 foreach ($files as $file) {
@@ -410,7 +418,7 @@ abstract class Resource
                 $name = $field->getName();
                 $value = array_key_exists($name, $uploadedFiles) ? $uploadedFiles[$name] : $existingRecord?->{$name};
                 if ($field->isRequired() && !static::filePaths($field, $value)) {
-                    throw new \Spark\Exceptions\Utils\UploaderUtilException('This file field is required.');
+                    throw new \Spark\Exceptions\Utils\UploaderException('This file field is required.');
                 }
             }
         } catch (\Throwable $error) {

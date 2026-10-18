@@ -107,16 +107,21 @@ import AdvancedFilterBuilder, { type AdvancedFilterField, type AdvancedFilterVal
 /** Paginated response shape from the backend Paginator */
 export interface PaginatedData<T = Record<string, unknown>> {
   data: T[];
-  pages: number;
-  page: number;
-  offset: number;
-  limit: number;
-  first_item: number;
-  last_item: number;
+  pages?: number;
+  last_page?: number;
+  page?: number;
+  current_page?: number;
+  offset?: number;
+  limit?: number;
+  per_page?: number;
+  first_item?: number;
+  from?: number | null;
+  last_item?: number;
+  to?: number | null;
   total: number;
-  keyword: string;
-  links: {
-    type: "previous" | "page" | "ellipsis" | "next";
+  keyword?: string;
+  links?: {
+    type?: "previous" | "page" | "ellipsis" | "next";
     url: string | null;
     label: string | number;
     active?: boolean;
@@ -763,10 +768,10 @@ export default function Bread<TData extends Record<string, unknown> = Record<str
   const page = usePage();
   const params = React.useMemo(() => new URL(page.url, window.location.origin).searchParams, [page.url]);
   const data = paginated?.data ?? [];
-  const totalPages = paginated?.pages ?? 0;
+  const totalPages = paginated?.last_page ?? paginated?.pages ?? 0;
   const totalItems = paginated?.total ?? 0;
-  const currentPage = paginated?.page ?? 1;
-  const pageSize = paginated?.limit ?? 10;
+  const currentPage = paginated?.current_page ?? paginated?.page ?? 1;
+  const pageSize = paginated?.per_page ?? paginated?.limit ?? 10;
   const pagination = { pageIndex: currentPage - 1, pageSize };
   const { can, cannot, fireAlert } = useApp();
   const [isLoading, setIsLoading] = React.useState(false);

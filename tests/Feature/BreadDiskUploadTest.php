@@ -98,12 +98,8 @@ final class BreadDiskUploadTest extends TestCase
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_TIMEOUT => 10
         ]);
-        try {
-            $body = curl_exec($curl);
-            $this->assertTrue($body !== false, curl_error($curl));
-            return [curl_getinfo($curl, CURLINFO_RESPONSE_CODE), json_decode($body, true, flags: JSON_THROW_ON_ERROR)];
-        } finally {
-            curl_close($curl);
-        }
+        $body = curl_exec($curl);
+        $this->assertTrue($body !== false, curl_error($curl));
+        return [curl_getinfo($curl, CURLINFO_RESPONSE_CODE), json_decode($body, true, flags: JSON_THROW_ON_ERROR)];
     }
 }

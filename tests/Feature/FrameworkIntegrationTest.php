@@ -32,9 +32,10 @@ final class FrameworkIntegrationTest extends TestCase
         $this->assertSame([], $queue->getFailedJobs());
         $this->assertSame([], $queue->getJobs(status: 'pending'));
         $this->assertSame('completed', storage()->get('queue-ran.txt'));
-        $this->assertTrue(str_starts_with(storage()->path('queue-ran.txt'), $this->storagePath));
+        $normalizedStoragePath = str_replace('\\', '/', $this->storagePath);
+        $this->assertTrue(str_starts_with(storage()->path('queue-ran.txt'), $normalizedStoragePath));
         $this->assertSame('/uploads/test.txt', storage('public')->url('test.txt'));
-        $this->assertTrue(str_starts_with(storage('public')->path('test.txt'), $this->storagePath . '/'));
+        $this->assertTrue(str_starts_with(storage('public')->path('test.txt'), $normalizedStoragePath . '/'));
     }
 
     public function test_cors_preflight_and_normal_request_follow_config(): void

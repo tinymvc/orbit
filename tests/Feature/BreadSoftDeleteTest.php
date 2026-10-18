@@ -73,7 +73,7 @@ final class BreadSoftDeleteTest extends DatabaseTestCase
         $post->categories()->sync([$category->id]);
         $url = '/admin/posts/' . $post->id;
         $this->delete($url)->assertStatus(303);
-        $this->assertFalse(Post::find($post->id));
+        $this->assertNull(Post::find($post->id));
         $this->assertTrue(Post::onlyTrashed()->findOrFail($post->id)->trashed());
         $this->assertTrue(Storage::disk('public')->exists('posts/keep.txt'));
         $this->assertDatabaseCount('categories_posts', 1);
@@ -124,7 +124,7 @@ final class BreadSoftDeleteTest extends DatabaseTestCase
         $this->assertSame(2, Post::count());
         $this->assertTrue(Post::find($active->id) instanceof Post);
         $this->assertTrue(Post::find($untouched->id) instanceof Post);
-        $this->assertFalse(Post::withTrashed()->find($trash->id));
+        $this->assertNull(Post::withTrashed()->find($trash->id));
     }
 
     public function test_restore_and_permanent_delete_require_separate_permissions(): void

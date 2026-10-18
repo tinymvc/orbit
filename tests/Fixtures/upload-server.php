@@ -33,7 +33,7 @@ header('Content-Type: application/json');
 try {
     $changes = Tests\Fixtures\UploadResource::processFileUploads(new Spark\Http\Request());
     echo json_encode($changes, JSON_THROW_ON_ERROR);
-} catch (Spark\Exceptions\Utils\UploaderUtilException $e) {
+} catch (Spark\Exceptions\Utils\UploaderException $e) {
     http_response_code(422);
     echo json_encode(['error' => $e->getMessage()], JSON_THROW_ON_ERROR);
 }
