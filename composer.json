@@ -6,7 +6,7 @@
     "license": "MIT",
     "require": {
         "php": ">=8.2",
-        "tinymvc/tinycore": "^3.3",
+        "tinymvc/tinycore": "^4.1",
         "tinymvc/inertia-php": "^2.0",
         "phpmailer/phpmailer": "^7.0",
         "voku/portable-ascii": "^2.0"

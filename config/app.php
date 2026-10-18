@@ -15,7 +15,7 @@ return [
     'temp_dir' => dirname(__DIR__) . '/storage/temp', // Temporary files directory
     'upload_dir' => dirname(__DIR__) . '/storage/uploads', // Upload directory
     'views_dir' => dirname(__DIR__) . '/resources/views', // Template directory
-    'lang_dir' => dirname(__DIR__) . '/resources/languages', // Language files directory
+    'locale_dir' => dirname(__DIR__) . '/resources/languages', // Language files directory
 
     // URL settings
     'media_url' => '/uploads/', // Media URL

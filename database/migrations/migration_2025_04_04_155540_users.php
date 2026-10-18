@@ -46,6 +46,13 @@ return new class {
             $table->timestamps();
         });
 
+        Schema::create('personal_access_tokens', function (Blueprint $table) {
+            $table->foreignId('user_id')->constrained()->cascadeOnDelete();
+            $table->string('token_hash', 64)->unique();
+            $table->timestamp('expire_at')->nullable()->index();
+            $table->timestamp('created_at');
+        });
+
         Schema::create('notifications', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
@@ -69,6 +76,7 @@ return new class {
     public function down(): void
     {
         Schema::dropIfExists('notifications');
+        Schema::dropIfExists('personal_access_tokens');
         Schema::dropIfExists('reset_password_links');
         Schema::dropIfExists('roles_users');
         Schema::dropIfExists('roles');

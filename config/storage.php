@@ -1,17 +1,19 @@
 <?php
 
 return [
+    // Default Filesystem Disk
     'default' => env('FILESYSTEM_DISK', env('FILESYSTEM_DRIVER', 'local')),
 
+    // Configuration for each filesystem disk
     'disks' => [
         'local' => [
             'driver' => 'local',
-            'root' => dirname(__DIR__) . '/storage/app',
+            'root' => dirname(__DIR__) . '/storage/app/private',
             'visibility' => 'private',
         ],
         'public' => [
             'driver' => 'local',
-            'root' => dirname(__DIR__) . '/storage/uploads',
+            'root' => dirname(__DIR__) . '/storage/app/public',
             'url' => rtrim(env('APP_URL', 'http://localhost:8080'), '/') . '/uploads',
             'visibility' => 'public',
         ],
