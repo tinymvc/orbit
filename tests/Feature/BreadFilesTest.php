@@ -48,7 +48,7 @@ final class BreadFilesTest extends DatabaseTestCase
         $resource = new class extends UploadResource {
             public static function fields(): array
             {
-                return [\App\Services\Bread\Form\FileUpload::make('attachments')->multiple()->required()];
+                return [\App\Services\Orbit\Bread\Form\FileUpload::make('attachments')->multiple()->required()];
             }
         };
         storage('public')->put('posts/owned.txt', 'owned');
@@ -58,7 +58,7 @@ final class BreadFilesTest extends DatabaseTestCase
         try {
             $resource::processFileUploads($request, $record);
             $this->fail('Expected a required-file validation error.');
-        } catch (\App\Services\Bread\UploadException $error) {
+        } catch (\App\Services\Orbit\Bread\UploadException $error) {
             $this->assertSame('attachments', $error->field);
             $this->assertTrue(storage('public')->exists('posts/owned.txt'));
         }

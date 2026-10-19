@@ -6,8 +6,9 @@ use Spark\Database\Model;
 
 class Category extends Model
 {
-    public function getCreatedAtAttribute($value)
-    {
-        return carbon($value)->toFormattedDateTimeString();
-    }
+    protected array $fillable = [
+        'name',
+        'slug',
+        'description',
+    ];
 }

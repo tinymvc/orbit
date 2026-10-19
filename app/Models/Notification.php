@@ -12,9 +12,4 @@ class Notification extends Model
     {
         return $this->belongsTo(User::class);
     }
-
-    public function getCreatedAtAttribute($value)
-    {
-        return carbon($value)->diffForHumans();
-    }
 }

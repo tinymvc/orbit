@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Role;
+use App\Http\Requests\RoleRequest;
+use Spark\Facades\Gate;
 use Inertia\Facades\Inertia;
 use Spark\Http\Request;
 
@@ -10,7 +12,13 @@ class RolesController extends Controller
 {
     public function index(Request $request)
     {
-        authorize('permission', 'roles.browse');
+        Gate::authorize('permission', 'roles.browse');
+
+        $input = $request->validate([
+            'per_page' => 'nullable|integer|min:1|max:500',
+            'page' => 'nullable|integer|min:1',
+            'search' => 'nullable|string|max:200',
+        ]);
 
         $roles = Role::latest('id')
             ->when(
@@ -20,23 +28,15 @@ class RolesController extends Controller
 
         return inertia('admin/roles', [
             'roles' => fn() => $roles->paginate(
-                $request->input('per_page', 10)
-            ),
+                (int) ($input['per_page'] ?: 10)
+            )->toArray(),
             'privileges' => Inertia::once(privileges_list(...))
         ]);
     }
 
-    public function store(Request $request)
+    public function store(RoleRequest $request)
     {
-        authorize('permission', 'roles.create');
-
-        $role = Role::create(
-            $request->validate([
-                'name' => 'required|max:100',
-                'slug' => 'required|max:150|unique:roles,slug',
-                'privileges' => 'required|array|min:1|max:200',
-            ])
-        );
+        $role = Role::create($request->validated());
 
         if ($role->wasCreated()) {
             return inertia()
@@ -49,18 +49,10 @@ class RolesController extends Controller
             ->with('error', 'Failed to create role.');
     }
 
-    public function update(int $id, Request $request)
+    public function update(int $id, RoleRequest $request)
     {
-        authorize('permission', 'roles.edit');
-
         $role = Role::findOrFail($id);
-        $role->fill(
-            $request->validate([
-                'name' => "required|max:100",
-                'slug' => "required|max:150|unique:roles,slug,$id",
-                'privileges' => 'required|array|min:1|max:200',
-            ])
-        );
+        $role->fill($request->validated());
 
         $role->save();
 
@@ -77,7 +69,7 @@ class RolesController extends Controller
 
     public function destroy(int $id)
     {
-        authorize('permission', 'roles.delete');
+        Gate::authorize('permission', 'roles.delete');
 
         Role::destroy($id);
 

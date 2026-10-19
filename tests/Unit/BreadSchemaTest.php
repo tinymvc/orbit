@@ -2,19 +2,26 @@
 
 namespace Tests\Unit;
 
-use App\Services\Bread\Form;
+use App\Services\Orbit\Bread\Form;
 use Spark\Testing\TestCase;
 
 final class BreadSchemaTest extends TestCase
 {
     public function test_relocated_fields_keep_the_frontend_schema_contract(): void
     {
-        foreach ([Form\TextInput::class => 'text', Form\Textarea::class => 'textarea',
-            Form\Checkbox::class => 'checkbox', Form\Toggle::class => 'switch',
-            Form\Select::class => 'select', Form\Combobox::class => 'combobox',
-            Form\DatePicker::class => 'date', Form\FileUpload::class => 'file',
-            Form\Hidden::class => 'hidden', Form\RichEditor::class => 'richtext',
-            Form\SlugInput::class => 'slug'] as $class => $type) {
+        foreach ([
+            Form\TextInput::class => 'text',
+            Form\Textarea::class => 'textarea',
+            Form\Checkbox::class => 'checkbox',
+            Form\Toggle::class => 'switch',
+            Form\Select::class => 'select',
+            Form\Combobox::class => 'combobox',
+            Form\DatePicker::class => 'date',
+            Form\FileUpload::class => 'file',
+            Form\Hidden::class => 'hidden',
+            Form\RichEditor::class => 'richtext',
+            Form\SlugInput::class => 'slug'
+        ] as $class => $type) {
             $schema = $class::make('value')->label('Value')->required()->toArray();
             $this->assertSame($type, $schema['type']);
             $this->assertSame('value', $schema['name']);

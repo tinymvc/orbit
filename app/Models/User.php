@@ -2,11 +2,8 @@
 
 namespace App\Models;
 
-use Spark\Database\Events;
 use Spark\Database\Model;
-use Spark\Facades\Auth;
 use Spark\Facades\Hash;
-use Spark\Facades\Mail;
 use function func_get_args;
 use function is_array;
 
@@ -29,6 +26,7 @@ class User extends Model
 
     protected array $casts = [
         'password' => 'hashed',
+        'email_verified_at' => 'datetime',
     ];
 
     protected array $appends = [
@@ -57,19 +55,6 @@ class User extends Model
         return $query->where('status', 'active');
     }
 
-    public function getCreatedAtAttribute($value): string
-    {
-        return carbon($value)->toFormattedDateString();
-    }
-
-    public function getEmailVerifiedAtAttribute($value): null|string
-    {
-        if (empty($value)) {
-            return null;
-        }
-        return carbon($value)->toFormattedDateTimeString();
-    }
-
     public function getDisplayNameAttribute(): string
     {
         if (!empty($this->attributes['first_name'])) {
@@ -82,11 +67,6 @@ class User extends Model
     public function getAvatarUrlAttribute(): string
     {
         return get_gravatar_url($this->attributes['email'] ?? '', 100);
-    }
-
-    public function events(): Events
-    {
-        return Events::make(changed: fn() => $this->id && Auth::clearCache($this->id));
     }
 
     public function hasRole(string|array $role): bool
@@ -163,51 +143,9 @@ class User extends Model
         return Hash::verify($password, $this->password);
     }
 
-    public function sendPasswordResetNotification(): void
-    {
-        $token = Hash::random(60);
-        $tokenEncrypted = Hash::encrypt($token);
-
-        $mail = Mail::to($this->email, $this->display_name)
-            ->subject('Password Reset Request')
-            ->view('emails.password-reset', [
-                'user' => $this,
-                'token' => $tokenEncrypted,
-            ]);
-
-        if ($mail->send()) {
-            ResetPasswordLink::insert([
-                'user_id' => $this->id,
-                'token' => $token,
-                'created_at' => now(),
-                'expires_at' => now()->addMinutes(60),
-            ]);
-        } else {
-            throw new \Exception('Failed to send password reset email. Please try again later.');
-        }
-    }
-
     public function hasVerifiedEmail(): bool
     {
         return !empty($this->email_verified_at) && $this->status === 'active';
     }
 
-    public function sendEmailVerificationNotification(): void
-    {
-        $token = Hash::encryptArray([
-            'user_id' => $this->id,
-            'timestamp' => now()->toDateTimeString(),
-        ]);
-
-        $mail = Mail::to($this->email, $this->display_name)
-            ->subject('Email Verification')
-            ->view('emails.email-verification', [
-                'user' => $this,
-                'token' => $token,
-            ]);
-
-        if (!$mail->send()) {
-            throw new \Exception('Failed to send email verification. Please try again later.');
-        }
-    }
 }

@@ -13,8 +13,5 @@ use Spark\Foundation\Http\Middlewares\CorsAccessControl as CORS;
  */
 class CorsControl extends CORS
 {
-    public function __construct()
-    {
-        $this->config = config('cors');
-    }
+    // You can customize the CORS settings here if needed.
 }

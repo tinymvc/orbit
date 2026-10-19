@@ -1,7 +1,7 @@
 import * as React from "react";
 import { ChevronDownIcon } from "lucide-react";
 
-import { format } from "date-fns";
+import { parseDate, toDateInput } from "@/lib/date-time";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import {
@@ -27,8 +27,12 @@ export function DatePicker({
 }: DatePickerProps) {
   const [open, setOpen] = React.useState(false);
   const [date, setDate] = React.useState<Date | undefined>(
-    value ? new Date(value) : undefined
+    parseDate(value) ?? undefined,
   );
+
+  React.useEffect(() => {
+    setDate(parseDate(value) ?? undefined);
+  }, [value]);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -56,7 +60,7 @@ export function DatePicker({
           onSelect={(date) => {
             setDate(date);
             if (date) {
-              onChange(format(date, "yyyy-MM-dd"));
+              onChange(toDateInput(date));
             }
             setOpen(false);
           }}

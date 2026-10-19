@@ -1,5 +1,6 @@
 import * as React from "react";
 import { format } from "date-fns";
+import { localDateTimeToUtc, parseDate } from "@/lib/date-time";
 import { Calendar as CalendarIcon, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -27,66 +28,43 @@ export function DateTimePicker({
   disablePast = false,
   disableFuture = false,
 }: DateTimePickerProps) {
+  const initialDate = parseDate(value);
   const [selectedDate, setSelectedDate] = React.useState<Date | undefined>(
-    value ? new Date(value) : undefined
+    initialDate ?? undefined,
   );
   const [timeValue, setTimeValue] = React.useState(
-    value ? format(new Date(value), "HH:mm") : "12:00"
+    initialDate ? format(initialDate, "HH:mm") : "12:00",
   );
+  const [timeError, setTimeError] = React.useState("");
 
   React.useEffect(() => {
-    if (value) {
-      try {
-        const date = new Date(value);
-        if (!isNaN(date.getTime())) {
-          setSelectedDate(date);
-          setTimeValue(format(date, "HH:mm"));
-        }
-      } catch (error) {
-        console.error("Invalid date value:", value);
-      }
-    }
+    const date = parseDate(value);
+    setSelectedDate(date ?? undefined);
+    setTimeValue(date ? format(date, "HH:mm") : "12:00");
+    setTimeError("");
   }, [value]);
 
-  const handleDateSelect = (date: Date | undefined) => {
-    if (!date) return;
-
-    const [hours, minutes] = timeValue.split(":");
-    const newDate = new Date(date);
-    newDate.setHours(
-      parseInt(hours || "0", 10),
-      parseInt(minutes || "0", 10),
-      0,
-      0
-    );
-
-    setSelectedDate(newDate);
-
-    // Format as Y-m-d H:i:s for backend
-    const formattedDate = format(newDate, "yyyy-MM-dd HH:mm:ss");
-    onChange(formattedDate);
+  const commit = (date: Date, time: string) => {
+    const utc = localDateTimeToUtc(date, time);
+    if (!utc) {
+      setTimeError(
+        "Choose a valid local time. This time may be skipped by daylight saving.",
+      );
+      return;
+    }
+    setTimeError("");
+    setSelectedDate(new Date(utc));
+    onChange(utc);
   };
 
-  const handleTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newTime = e.target.value;
-    setTimeValue(newTime);
+  const handleDateSelect = (date: Date | undefined) => {
+    if (date) commit(date, timeValue);
+  };
 
-    if (selectedDate) {
-      const [hours, minutes] = newTime.split(":");
-      const newDate = new Date(selectedDate);
-      newDate.setHours(
-        parseInt(hours || "0", 10),
-        parseInt(minutes || "0", 10),
-        0,
-        0
-      );
-
-      setSelectedDate(newDate);
-
-      // Format as Y-m-d H:i:s for backend
-      const formattedDate = format(newDate, "yyyy-MM-dd HH:mm:ss");
-      onChange(formattedDate);
-    }
+  const handleTimeChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const time = event.target.value;
+    setTimeValue(time);
+    if (selectedDate) commit(selectedDate, time);
   };
 
   return (
@@ -97,7 +75,7 @@ export function DateTimePicker({
           disabled={disabled}
           className={cn(
             "w-full justify-start text-left font-normal",
-            !selectedDate && "text-muted-foreground"
+            !selectedDate && "text-muted-foreground",
           )}
         >
           <CalendarIcon className="mr-2 h-4 w-4" />
@@ -130,6 +108,11 @@ export function DateTimePicker({
               className="flex-1"
             />
           </div>
+          {timeError && (
+            <p role="alert" className="mt-2 text-xs text-destructive">
+              {timeError}
+            </p>
+          )}
         </div>
       </PopoverContent>
     </Popover>

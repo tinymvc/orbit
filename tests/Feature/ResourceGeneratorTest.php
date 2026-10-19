@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Services\Bread\Commands\CreateResourceStub;
+use App\Services\Orbit\Bread\Commands\CreateResourceStub;
 use Tests\Fixtures\UploadResource;
 use Tests\TestCase;
 
@@ -19,7 +19,7 @@ final class ResourceGeneratorTest extends TestCase
             (new CreateResourceStub())(['_args' => ["$namespace/Post"]]);
             $generated = file_get_contents($file);
             $this->assertTrue(str_contains($generated, 'use App\\Models\\Post;'));
-            $this->assertTrue(str_contains($generated, 'use App\\Services\\Bread\\Resource;'));
+            $this->assertTrue(str_contains($generated, 'use App\\Services\\Orbit\\Bread\\Resource;'));
             $this->assertTrue(str_contains($generated, "namespace App\\Http\\Resources\\$namespace;"));
             $this->assertFalse(str_contains($generated, '{{'));
             require $file;
@@ -28,9 +28,15 @@ final class ResourceGeneratorTest extends TestCase
             $this->assertSame('/admin/posts', $class::getUrl());
             $this->assertSame('name', $class::toSchema()['fields'][0]['name']);
         } finally {
-            while (ob_get_level() > $level) { ob_end_clean(); }
-            if (is_file($file)) { unlink($file); }
-            if (is_dir($folder)) { rmdir($folder); }
+            while (ob_get_level() > $level) {
+                ob_end_clean();
+            }
+            if (is_file($file)) {
+                unlink($file);
+            }
+            if (is_dir($folder)) {
+                rmdir($folder);
+            }
         }
     }
 

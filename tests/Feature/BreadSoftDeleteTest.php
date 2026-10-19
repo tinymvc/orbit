@@ -5,7 +5,7 @@ namespace Tests\Feature;
 use App\Http\Resources\PostsResource;
 use App\Models\Category;
 use App\Models\Post;
-use App\Services\Bread\ResourceController;
+use App\Services\Orbit\Bread\ResourceController;
 use Spark\Facades\Storage;
 use Spark\Database\Schema\Schema;
 use Tests\DatabaseTestCase;

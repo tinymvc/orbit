@@ -3,7 +3,7 @@
 namespace Tests\Fixtures;
 
 use App\Http\Resources\CategoriesResource;
-use App\Services\Bread\Table\Filter;
+use App\Services\Orbit\Bread\Table\Filter;
 
 final class FilteredCategoryResource extends CategoriesResource
 {
@@ -27,6 +27,12 @@ final class FilteredCategoryResource extends CategoriesResource
         ];
     }
 
-    public static function editor(): array { return ['style' => 'modal', 'width' => '3xl']; }
-    public static function pageSizeOptions(): array { return [10, 20, 100]; }
+    public static function editor(): array
+    {
+        return ['style' => 'modal', 'width' => '3xl'];
+    }
+    public static function pageSizeOptions(): array
+    {
+        return [10, 20, 100];
+    }
 }

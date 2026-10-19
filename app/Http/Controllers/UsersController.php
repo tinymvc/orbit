@@ -2,17 +2,31 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\UserBulkActionRequest;
+use App\Http\Requests\UserRequest;
 use App\Models\Role;
 use App\Models\User;
-use Spark\Facades\Log;
+use App\Services\UserServices;
+use Spark\Facades\Gate;
 use Spark\Http\Request;
-use function in_array;
 
 class UsersController extends Controller
 {
+    public function __construct(private UserServices $users)
+    {
+    }
+
     public function index(Request $request)
     {
-        authorize('permission', 'users.browse');
+        Gate::authorize('permission', 'users.browse');
+
+        $input = $request->validate([
+            'per_page' => 'nullable|integer|min:1|max:500',
+            'page' => 'nullable|integer|min:1',
+            'search' => 'nullable|string|max:200',
+            'status' => 'nullable|string|in:active,inactive,suspended,banned',
+            'role' => 'nullable|integer|min:1',
+        ]);
 
         $users = User::latest('id')
             ->with('roles:id,name,privileges')
@@ -36,154 +50,36 @@ class UsersController extends Controller
 
         return inertia('admin/users', [
             'users' => fn() => $users->paginate(
-                $request->input('per_page', 10)
-            ),
-            'roles' => fn() => Role::all(['id', 'name']),
+                (int) ($input['per_page'] ?: 10)
+            )->toArray(),
+            'roles' => fn() => Role::query()->get(['id', 'name']),
         ]);
     }
 
-    public function store(Request $request)
+    public function store(UserRequest $request)
     {
-        authorize('permission', 'users.create');
+        $this->users->save($request->validated());
 
-        $input = $request->validate([
-            'first_name' => 'max:50',
-            'last_name' => 'max:50',
-            'roles' => 'required|array|min:1|max:50',
-            'email' => 'required|email|max:60|unique:users,email',
-            'username' => 'required|max:60|unique:users,username',
-            'password' => 'required|min:6|confirmed',
-        ]);
-
-        $user = User::create(
-            $input->except('roles')->filter()
-        );
-
-        if ($user->wasCreated()) {
-            $user->roles()
-                ->sync($input->array('roles'));
-
-            return inertia()
-                ->back()
-                ->with('success', 'User created successfully.');
-        }
-
-        return inertia()
-            ->back()
-            ->with('error', 'Failed to create user.');
+        return inertia()->back()->with('success', 'User created successfully.');
     }
 
-    public function update(int $id, Request $request)
+    public function update(int $id, UserRequest $request)
     {
-        authorize('permission', 'users.edit');
+        $this->users->save($request->validated(), User::findOrFail($id));
 
-        $input = $request->validate([
-            'first_name' => 'max:50',
-            'last_name' => 'max:50',
-            'roles' => 'required|array|min:1|max:50',
-            'email' => "required|email|max:60|unique:users,email,$id",
-            'username' => "required|max:60|unique:users,username,$id",
-            'password' => 'nullable|min:8|confirmed',
-        ]);
-
-        /** @var \App\Models\User */
-        $user = User::findOrFail($id);
-        $user->fill($input->except('roles')->filter());
-
-        $result = $user->roles()->sync($input->array('roles'));
-
-        if (
-            $user->save() ||
-            $result['attached'] > 0 ||
-            $result['detached'] > 0
-        ) {
-            return inertia()
-                ->back()
-                ->with('success', 'User updated successfully.');
-        }
-
-        return inertia()
-            ->back()
-            ->with('error', 'Failed to update user.');
+        return inertia()->back()->with('success', 'User updated successfully.');
     }
 
-    public function bulkAction(Request $request)
+    public function bulkAction(UserBulkActionRequest $request)
     {
-        $input = $request->validate([
-            'action' => 'required|string|in:delete,active,inactive,suspended,banned,send-reset-link,send-email-verification',
-            'ids' => 'required|array|min:1',
-        ]);
+        [$level, $message] = $this->users->bulkAction($request->validated());
 
-        if ($input->string('action') === 'delete') {
-            authorize('permission', 'users.delete');
-
-            User::destroy($input->array('ids'));
-
-            return inertia()
-                ->back()
-                ->with('success', 'Selected users deleted successfully.');
-        } elseif (in_array($input->string('action'), ['active', 'inactive', 'suspended', 'banned'])) {
-            authorize('permission', 'users.edit');
-
-            User::whereIn('id', $input->array('ids'))
-                ->update(['status' => $input['action']]);
-
-            $status = [
-                'active' => 'activated',
-                'inactive' => 'deactivated',
-                'suspended' => 'suspended',
-                'banned' => 'banned'
-            ][$input->string('action')];
-
-            return inertia()
-                ->back()
-                ->with('success', "Selected users $status successfully.");
-        } elseif ($input->string('action') === 'send-reset-link') {
-            authorize('permission', 'users.edit');
-
-            /**  @var \App\Models\User[] $users */
-            $users = User::whereIn('id', $input->array('ids'))->get();
-
-            foreach ($users as $user) {
-                try {
-                    $user->sendPasswordResetNotification();
-                } catch (\Exception $e) {
-                    Log::error("Failed to send password reset notification to user ID {$user->id}: " . $e->getMessage());
-                }
-            }
-
-            return inertia()
-                ->back()
-                ->with('success', 'Password reset links sent successfully.');
-        } elseif ($input->string('action') === 'send-email-verification') {
-            authorize('permission', 'users.edit');
-
-            /**  @var \App\Models\User[] $users */
-            $users = User::whereIn('id', $input->array('ids'))->get();
-
-            foreach ($users as $user) {
-                if (!$user->hasVerifiedEmail()) {
-                    try {
-                        $user->sendEmailVerificationNotification();
-                    } catch (\Exception $e) {
-                        Log::error("Failed to send email verification notification to user ID {$user->id}: " . $e->getMessage());
-                    }
-                }
-            }
-
-            return inertia()
-                ->back()
-                ->with('success', 'Email verification links sent successfully.');
-        }
-
-        return inertia()
-            ->back()
-            ->with('error', 'Invalid action selected.');
+        return inertia()->back()->with($level, $message);
     }
 
     public function destroy(int $id)
     {
-        authorize('permission', 'users.delete');
+        Gate::authorize('permission', 'users.delete');
 
         User::destroy($id);
 

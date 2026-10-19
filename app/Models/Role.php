@@ -15,9 +15,4 @@ class Role extends Model
     {
         return $this->belongsToMany(User::class);
     }
-
-    public function getUpdatedAtAttribute($value): string
-    {
-        return carbon($value)->diffForHumans();
-    }
 }

@@ -3,9 +3,9 @@
 namespace App\Http\Resources;
 
 use App\Models\Category;
-use App\Services\Bread\Form;
-use App\Services\Bread\Resource;
-use App\Services\Bread\Table;
+use App\Services\Orbit\Bread\Form;
+use App\Services\Orbit\Bread\Resource;
+use App\Services\Orbit\Bread\Table;
 
 /**
  * Categories BREAD Resource

@@ -96,30 +96,42 @@ import { Separator } from "@/components/ui/separator";
 import { headline } from "@/lib/utils";
 import { useApp } from "@/contexts/app";
 
-import { breadActionIds, breadActionPermission, type FilterValue, parseAdvancedFilter, encodeAdvancedFilter, isActiveFilterValue, readFilterValueFromUrl, getFilterOptionLabels, buildPaginationJumpItems } from "@/lib/bread";
+import {
+  breadActionIds,
+  breadActionPermission,
+  type FilterValue,
+  parseAdvancedFilter,
+  encodeAdvancedFilter,
+  isActiveFilterValue,
+  readFilterValueFromUrl,
+  getFilterOptionLabels,
+  buildPaginationJumpItems,
+} from "@/lib/bread";
 import { Combobox } from "./combobox";
 import { Card, CardContent } from "./ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "./ui/dialog";
-import AdvancedFilterBuilder, { type AdvancedFilterField, type AdvancedFilterValue } from "./advanced-filter-builder";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "./ui/dialog";
+import AdvancedFilterBuilder, {
+  type AdvancedFilterField,
+  type AdvancedFilterValue,
+} from "./advanced-filter-builder";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
 /** Paginated response shape from the backend Paginator */
 export interface PaginatedData<T = Record<string, unknown>> {
   data: T[];
-  pages?: number;
-  last_page?: number;
-  page?: number;
-  current_page?: number;
-  offset?: number;
-  limit?: number;
-  per_page?: number;
-  first_item?: number;
-  from?: number | null;
-  last_item?: number;
-  to?: number | null;
+  current_page: number;
+  last_page: number;
+  per_page: number;
+  from: number | null;
+  to: number | null;
   total: number;
-  keyword?: string;
   links?: {
     type?: "previous" | "page" | "ellipsis" | "next";
     url: string | null;
@@ -157,7 +169,12 @@ export interface BreadActionsCellProps<TData = Record<string, unknown>> {
   record: TData;
   onEdit: (record: TData) => void;
   onDelete: (id: number) => void;
-  can: { edit: boolean; delete: boolean; restore?: boolean; forceDelete?: boolean };
+  can: {
+    edit: boolean;
+    delete: boolean;
+    restore?: boolean;
+    forceDelete?: boolean;
+  };
   softDeletes?: BreadConfig["softDeletes"];
   onRestore?: (id: number) => void;
   onForceDelete?: (id: number) => void;
@@ -290,7 +307,13 @@ interface BreadProps<TData = Record<string, unknown>> {
     handleRestore?: (id: number) => void;
     handleForceDelete?: (id: number) => void;
     isMutating?: boolean;
-    can: { delete: boolean; edit: boolean; create: boolean; restore?: boolean; forceDelete?: boolean };
+    can: {
+      delete: boolean;
+      edit: boolean;
+      create: boolean;
+      restore?: boolean;
+      forceDelete?: boolean;
+    };
   }) => ColumnDef<TData>[];
   FormFields: React.ComponentType<{
     formData: Record<string, unknown>;
@@ -344,11 +367,19 @@ export function BreadActionsCell<TData extends Record<string, unknown>>({
           )}
           {deletable && (
             <DropdownMenuItem
-              onClick={() => trashed ? onForceDelete?.(Number(record.id)) : onDelete(Number(record.id))}
+              onClick={() =>
+                trashed
+                  ? onForceDelete?.(Number(record.id))
+                  : onDelete(Number(record.id))
+              }
               className="text-destructive"
             >
               <Trash2 className="mr-1 size-4" />
-              {trashed ? "Delete permanently" : softDeletes ? "Move to trash" : "Delete"}
+              {trashed
+                ? "Delete permanently"
+                : softDeletes
+                  ? "Move to trash"
+                  : "Delete"}
             </DropdownMenuItem>
           )}
         </DropdownMenuContent>
@@ -474,30 +505,34 @@ export function BreadInlineEditCell({
   if (type === "select") {
     return (
       <div>
-      <select
-        autoFocus
-        value={draft}
-        onChange={(event) => {
-          const nextValue = event.target.value;
-          setDraft(nextValue);
-          void commit(nextValue);
-        }}
-        onBlur={() => setEditing(false)}
-        onKeyDown={(event) => {
-          if (event.key === "Escape") cancel();
-        }}
-        disabled={saving}
-        aria-label={label}
-        className="h-8 w-full min-w-32 rounded-md border border-input bg-background px-2 text-xs shadow-xs outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
-      >
-        {!required && <option value="">None</option>}
-        {options.map((option) => (
-          <option key={String(option.value)} value={String(option.value)}>
-            {option.label}
-          </option>
-        ))}
-      </select>
-      {validationError && <p role="alert" className="mt-1 text-xs text-destructive">{validationError}</p>}
+        <select
+          autoFocus
+          value={draft}
+          onChange={(event) => {
+            const nextValue = event.target.value;
+            setDraft(nextValue);
+            void commit(nextValue);
+          }}
+          onBlur={() => setEditing(false)}
+          onKeyDown={(event) => {
+            if (event.key === "Escape") cancel();
+          }}
+          disabled={saving}
+          aria-label={label}
+          className="h-8 w-full min-w-32 rounded-md border border-input bg-background px-2 text-xs shadow-xs outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
+        >
+          {!required && <option value="">None</option>}
+          {options.map((option) => (
+            <option key={String(option.value)} value={String(option.value)}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+        {validationError && (
+          <p role="alert" className="mt-1 text-xs text-destructive">
+            {validationError}
+          </p>
+        )}
       </div>
     );
   }
@@ -666,11 +701,17 @@ const BreadDrawer = React.memo<BreadDrawerProps>(
       return null;
     }
 
-    const formTitle = record ? (config.translations?.edit_record || `Edit ${config.name}`) : `Create ${config.name}`;
+    const formTitle = record
+      ? config.translations?.edit_record || `Edit ${config.name}`
+      : `Create ${config.name}`;
     const formDescription = record
-      ? config.translations?.edit_record_description || `Update the ${config.name.toLowerCase()} details below`
-      : config.translations?.add_record_description || `Add a new ${config.name.toLowerCase()} using the form below`;
-    const close = (nextOpen: boolean) => { if (!nextOpen && !processing) onClose(); };
+      ? config.translations?.edit_record_description ||
+        `Update the ${config.name.toLowerCase()} details below`
+      : config.translations?.add_record_description ||
+        `Add a new ${config.name.toLowerCase()} using the form below`;
+    const close = (nextOpen: boolean) => {
+      if (!nextOpen && !processing) onClose();
+    };
     const formContent = (
       <form onSubmit={handleSubmit} className="flex flex-col min-h-0 h-full">
         <div className="overflow-y-auto px-4 flex-1">
@@ -764,60 +805,104 @@ const BreadDrawer = React.memo<BreadDrawerProps>(
   },
 );
 
-export default function Bread<TData extends Record<string, unknown> = Record<string, unknown>>({ config, paginated, columnsCallback, FormFields }: BreadProps<TData>) {
+export default function Bread<
+  TData extends Record<string, unknown> = Record<string, unknown>,
+>({ config, paginated, columnsCallback, FormFields }: BreadProps<TData>) {
   const page = usePage();
-  const params = React.useMemo(() => new URL(page.url, window.location.origin).searchParams, [page.url]);
+  const params = React.useMemo(
+    () => new URL(page.url, window.location.origin).searchParams,
+    [page.url],
+  );
   const data = paginated?.data ?? [];
-  const totalPages = paginated?.last_page ?? paginated?.pages ?? 0;
+  const totalPages = paginated?.last_page ?? 1;
   const totalItems = paginated?.total ?? 0;
-  const currentPage = paginated?.current_page ?? paginated?.page ?? 1;
-  const pageSize = paginated?.per_page ?? paginated?.limit ?? 10;
+  const currentPage = paginated?.current_page ?? 1;
+  const pageSize = paginated?.per_page ?? 10;
   const pagination = { pageIndex: currentPage - 1, pageSize };
   const { can, cannot, fireAlert } = useApp();
   const [isLoading, setIsLoading] = React.useState(false);
-  const [columnVisibility, setColumnVisibility] = React.useState(config.initialColumnVisibility || {});
+  const [columnVisibility, setColumnVisibility] = React.useState(
+    config.initialColumnVisibility || {},
+  );
   const [rowSelection, setRowSelection] = React.useState({});
   const [localSorting, setLocalSorting] = React.useState<SortingState>([]);
   const sorting: SortingState = config.serverSorting
-    ? (params.get("sort") ? [{ id: params.get("sort")!, desc: params.get("direction") !== "asc" }] : []) : localSorting;
-  const [searchQuery, setSearchQuery] = React.useState(params.get("search") || "");
+    ? params.get("sort")
+      ? [{ id: params.get("sort")!, desc: params.get("direction") !== "asc" }]
+      : []
+    : localSorting;
+  const [searchQuery, setSearchQuery] = React.useState(
+    params.get("search") || "",
+  );
   const [debouncedSearchQuery] = useDebounce(searchQuery, 500);
   const previousSearch = React.useRef(searchQuery);
   const [drawerOpen, setDrawerOpen] = React.useState(false);
-  const [selectedRecord, setSelectedRecord] = React.useState<TData | null>(null);
+  const [selectedRecord, setSelectedRecord] = React.useState<TData | null>(
+    null,
+  );
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
-  const [recordToDelete, setRecordToDelete] = React.useState<number | null>(null);
+  const [recordToDelete, setRecordToDelete] = React.useState<number | null>(
+    null,
+  );
   const [isDeleting, setIsDeleting] = React.useState(false);
   const [permanentDelete, setPermanentDelete] = React.useState(false);
   const [isRestoring, setIsRestoring] = React.useState(false);
   const [isBulkPending, setIsBulkPending] = React.useState(false);
   const trashScope = params.get("trashed") || "without";
-  const regularFilters = (config.filters || []).filter((f) => f.variant !== "exclude");
-  const excludeFilters = (config.filters || []).filter((f) => f.variant === "exclude");
-  const readFilters = (filters: BreadFilter[]) => Object.fromEntries(filters.flatMap((f) => {
-    const value = readFilterValueFromUrl(params, f.queryKey ?? f.key, f.multiple);
-    return value && isActiveFilterValue(value) ? [[f.key, value]] : [];
-  })) as Record<string, FilterValue>;
+  const regularFilters = (config.filters || []).filter(
+    (f) => f.variant !== "exclude",
+  );
+  const excludeFilters = (config.filters || []).filter(
+    (f) => f.variant === "exclude",
+  );
+  const readFilters = (filters: BreadFilter[]) =>
+    Object.fromEntries(
+      filters.flatMap((f) => {
+        const value = readFilterValueFromUrl(
+          params,
+          f.queryKey ?? f.key,
+          f.multiple,
+        );
+        return value && isActiveFilterValue(value) ? [[f.key, value]] : [];
+      }),
+    ) as Record<string, FilterValue>;
   const activeFilters = readFilters(regularFilters);
   const activeExcludeFilters = readFilters(excludeFilters);
   const activeFilterCount = Object.keys(activeFilters).length;
   const activeExcludeFilterCount = Object.keys(activeExcludeFilters).length;
-  const advancedFilter = parseAdvancedFilter(params.get("af") ?? params.get("advanced_filter"));
-  const storageKey = config.tableStateStorageKey ? `${config.tableStateStorageKey}:${(page.props.auth as { user?: { id?: number } } | undefined)?.user?.id ?? "user"}` : null;
+  const advancedFilter = parseAdvancedFilter(
+    params.get("af") ?? params.get("advanced_filter"),
+  );
+  const storageKey = config.tableStateStorageKey
+    ? `${config.tableStateStorageKey}:${(page.props.auth as { user?: { id?: number } } | undefined)?.user?.id ?? "user"}`
+    : null;
   const restored = React.useRef(false);
 
   const navigate = (next: URLSearchParams) => {
-    router.get(`${config.url}?${next.toString()}`, {}, {
-      preserveState: true, preserveScroll: true, replace: true,
-      onStart: () => setIsLoading(true), onFinish: () => setIsLoading(false),
-    });
+    router.get(
+      `${config.url}?${next.toString()}`,
+      {},
+      {
+        preserveState: true,
+        preserveScroll: true,
+        replace: true,
+        onStart: () => setIsLoading(true),
+        onFinish: () => setIsLoading(false),
+      },
+    );
   };
-  const changeParams = (changes: Record<string, FilterValue | number | undefined>, resetPage = true) => {
+  const changeParams = (
+    changes: Record<string, FilterValue | number | undefined>,
+    resetPage = true,
+  ) => {
     const next = new URLSearchParams(params);
     for (const [key, value] of Object.entries(changes)) {
-      for (const name of Array.from(next.keys())) if (name === key || name.startsWith(`${key}[`)) next.delete(name);
-      if (Array.isArray(value)) value.forEach((item, i) => next.set(`${key}[${i}]`, item));
-      else if (value !== undefined && value !== "") next.set(key, String(value));
+      for (const name of Array.from(next.keys()))
+        if (name === key || name.startsWith(`${key}[`)) next.delete(name);
+      if (Array.isArray(value))
+        value.forEach((item, i) => next.set(`${key}[${i}]`, item));
+      else if (value !== undefined && value !== "")
+        next.set(key, String(value));
     }
     if (resetPage) next.set("page", "1");
     navigate(next);
@@ -842,67 +927,147 @@ export default function Bread<TData extends Record<string, unknown> = Record<str
       if (!restored.current) {
         restored.current = true;
         const saved = sessionStorage.getItem(storageKey);
-        if (saved && !params.size) { navigate(new URLSearchParams(saved)); return; }
+        if (saved && !params.size) {
+          navigate(new URLSearchParams(saved));
+          return;
+        }
       }
       const saved = new URLSearchParams(params);
       if (config.deepLink) saved.delete(config.deepLink.param);
       sessionStorage.setItem(storageKey, saved.toString());
-    } catch { /* Storage can be disabled by the browser. */ }
+    } catch {
+      /* Storage can be disabled by the browser. */
+    }
   }, [page.url, storageKey]);
 
-  const setPagination = (update: { pageIndex: number; pageSize: number } | ((value: typeof pagination) => typeof pagination)) => {
+  const setPagination = (
+    update:
+      | { pageIndex: number; pageSize: number }
+      | ((value: typeof pagination) => typeof pagination),
+  ) => {
     const next = typeof update === "function" ? update(pagination) : update;
     changeParams({ page: next.pageIndex + 1, per_page: next.pageSize }, false);
   };
-  const handlePageSizeChange = (value: string) => changeParams({ per_page: Number(value) });
+  const handlePageSizeChange = (value: string) =>
+    changeParams({ per_page: Number(value) });
   const handlePageJumpChange = (value: string) => {
     const pageNumber = Number(value);
-    if (Number.isInteger(pageNumber) && pageNumber > 0 && pageNumber <= totalPages) changeParams({ page: pageNumber }, false);
+    if (
+      Number.isInteger(pageNumber) &&
+      pageNumber > 0 &&
+      pageNumber <= totalPages
+    )
+      changeParams({ page: pageNumber }, false);
   };
-  const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(event.target.value);
-  const changeFilter = (filters: BreadFilter[], key: string, value: FilterValue) => changeParams({ [filters.find((f) => f.key === key)?.queryKey ?? key]: value });
-  const clearFilters = (filters: BreadFilter[]) => changeParams(Object.fromEntries(filters.map((f) => [f.queryKey ?? f.key, ""])));
-  const handleFilterChange = (key: string, value: FilterValue) => changeFilter(regularFilters, key, value);
-  const handleExcludeFilterChange = (key: string, value: FilterValue) => changeFilter(excludeFilters, key, value);
+  const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) =>
+    setSearchQuery(event.target.value);
+  const changeFilter = (
+    filters: BreadFilter[],
+    key: string,
+    value: FilterValue,
+  ) =>
+    changeParams({
+      [filters.find((f) => f.key === key)?.queryKey ?? key]: value,
+    });
+  const clearFilters = (filters: BreadFilter[]) =>
+    changeParams(
+      Object.fromEntries(filters.map((f) => [f.queryKey ?? f.key, ""])),
+    );
+  const handleFilterChange = (key: string, value: FilterValue) =>
+    changeFilter(regularFilters, key, value);
+  const handleExcludeFilterChange = (key: string, value: FilterValue) =>
+    changeFilter(excludeFilters, key, value);
   const handleClearFilters = () => clearFilters(regularFilters);
   const handleClearExcludeFilters = () => clearFilters(excludeFilters);
-  const setAdvancedFilter = (value?: AdvancedFilterValue) => changeParams({ af: value ? encodeAdvancedFilter(value) : "", advanced_filter: "" });
-  const updateOpenRecordParam = React.useCallback((id: number | null) => {
-    if (!config.deepLink) return;
-    const next = new URLSearchParams(params);
-    if (id) next.set(config.deepLink.param, String(id)); else next.delete(config.deepLink.param);
-    router.replace({ url: `${config.url}?${next}`, preserveState: true, preserveScroll: true });
-  }, [config.deepLink?.param, config.url, params]);
-  const handleDelete = React.useCallback((id: number) => { setPermanentDelete(false); setRecordToDelete(id); setDeleteDialogOpen(true); }, []);
-  const handleForceDelete = React.useCallback((id: number) => { setPermanentDelete(true); setRecordToDelete(id); setDeleteDialogOpen(true); }, []);
-  const handleRestore = React.useCallback((id: number) => {
-    setIsRestoring(true);
-    router.post(`${config.url}/${id}/restore`, {}, {
-      preserveScroll: true,
-      onSuccess: () => setRowSelection({}),
-      onFinish: () => setIsRestoring(false),
+  const setAdvancedFilter = (value?: AdvancedFilterValue) =>
+    changeParams({
+      af: value ? encodeAdvancedFilter(value) : "",
+      advanced_filter: "",
     });
-  }, [config.url]);
+  const updateOpenRecordParam = React.useCallback(
+    (id: number | null) => {
+      if (!config.deepLink) return;
+      const next = new URLSearchParams(params);
+      if (id) next.set(config.deepLink.param, String(id));
+      else next.delete(config.deepLink.param);
+      router.replace({
+        url: `${config.url}?${next}`,
+        preserveState: true,
+        preserveScroll: true,
+      });
+    },
+    [config.deepLink?.param, config.url, params],
+  );
+  const handleDelete = React.useCallback((id: number) => {
+    setPermanentDelete(false);
+    setRecordToDelete(id);
+    setDeleteDialogOpen(true);
+  }, []);
+  const handleForceDelete = React.useCallback((id: number) => {
+    setPermanentDelete(true);
+    setRecordToDelete(id);
+    setDeleteDialogOpen(true);
+  }, []);
+  const handleRestore = React.useCallback(
+    (id: number) => {
+      setIsRestoring(true);
+      router.post(
+        `${config.url}/${id}/restore`,
+        {},
+        {
+          preserveScroll: true,
+          onSuccess: () => setRowSelection({}),
+          onFinish: () => setIsRestoring(false),
+        },
+      );
+    },
+    [config.url],
+  );
   const confirmDelete = () => {
     if (!recordToDelete || isDeleting) return;
     setIsDeleting(true);
-    router.delete(`${config.url}/${recordToDelete}${permanentDelete ? "/force-delete" : ""}`, {
-      preserveScroll: true,
-      onSuccess: () => { setDeleteDialogOpen(false); setRecordToDelete(null); setRowSelection({}); },
-      onFinish: () => setIsDeleting(false),
-    });
+    router.delete(
+      `${config.url}/${recordToDelete}${permanentDelete ? "/force-delete" : ""}`,
+      {
+        preserveScroll: true,
+        onSuccess: () => {
+          setDeleteDialogOpen(false);
+          setRecordToDelete(null);
+          setRowSelection({});
+        },
+        onFinish: () => setIsDeleting(false),
+      },
+    );
   };
-  const handleEdit = React.useCallback((record: TData) => {
-    if (config.softDeletes && record[config.softDeletes.column]) return;
-    if (config.routing?.enabled) router.visit(config.routing.editPath(Number(record.id)));
-    else { setSelectedRecord(record); setDrawerOpen(true); updateOpenRecordParam(Number(record.id)); }
-  }, [config.routing, config.softDeletes, updateOpenRecordParam]);
+  const handleEdit = React.useCallback(
+    (record: TData) => {
+      if (config.softDeletes && record[config.softDeletes.column]) return;
+      if (config.routing?.enabled)
+        router.visit(config.routing.editPath(Number(record.id)));
+      else {
+        setSelectedRecord(record);
+        setDrawerOpen(true);
+        updateOpenRecordParam(Number(record.id));
+      }
+    },
+    [config.routing, config.softDeletes, updateOpenRecordParam],
+  );
   const handleCreate = React.useCallback(() => {
     if (config.routing?.enabled) router.visit(config.routing.createPath);
-    else { setSelectedRecord(null); setDrawerOpen(true); updateOpenRecordParam(null); }
+    else {
+      setSelectedRecord(null);
+      setDrawerOpen(true);
+      updateOpenRecordParam(null);
+    }
   }, [config.routing, updateOpenRecordParam]);
-  const handleCloseDrawer = () => { setDrawerOpen(false); setSelectedRecord(null); updateOpenRecordParam(null); };
-  const deepId = config.deepLink ? Number(params.get(config.deepLink.param)) : 0;
+  const handleCloseDrawer = () => {
+    setDrawerOpen(false);
+    setSelectedRecord(null);
+    updateOpenRecordParam(null);
+  };
+  const deepId = config.deepLink
+    ? Number(params.get(config.deepLink.param))
+    : 0;
   const previousDeepId = React.useRef(0);
   React.useEffect(() => {
     const wasOpen = previousDeepId.current > 0;
@@ -911,14 +1076,36 @@ export default function Bread<TData extends Record<string, unknown> = Record<str
       setSelectedRecord(null);
       setDrawerOpen(false);
     }
-    if (!config.deepLink || config.routing?.enabled || !Number.isInteger(deepId) || deepId < 1) return;
+    if (
+      !config.deepLink ||
+      config.routing?.enabled ||
+      !Number.isInteger(deepId) ||
+      deepId < 1
+    )
+      return;
     if (config.permissions?.edit && cannot(config.permissions.edit)) return;
     let cancelled = false;
     const current = data.find((record) => Number(record.id) === deepId);
-    const show = (record: TData) => { if (!cancelled && !(config.softDeletes && record[config.softDeletes.column])) { setSelectedRecord(record); setDrawerOpen(true); } };
+    const show = (record: TData) => {
+      if (
+        !cancelled &&
+        !(config.softDeletes && record[config.softDeletes.column])
+      ) {
+        setSelectedRecord(record);
+        setDrawerOpen(true);
+      }
+    };
     if (current) show(current);
-    else config.deepLink.fetchRecord?.(deepId).then((record) => show(record as TData)).catch(() => { if (!cancelled) updateOpenRecordParam(null); });
-    return () => { cancelled = true; };
+    else
+      config.deepLink
+        .fetchRecord?.(deepId)
+        .then((record) => show(record as TData))
+        .catch(() => {
+          if (!cancelled) updateOpenRecordParam(null);
+        });
+    return () => {
+      cancelled = true;
+    };
   }, [deepId]);
   const columns = React.useMemo(() => {
     const baseColumns = columnsCallback({
@@ -932,8 +1119,11 @@ export default function Bread<TData extends Record<string, unknown> = Record<str
         delete: !config.permissions?.delete || !!can(config.permissions.delete),
         edit: !config.permissions?.edit || !!can(config.permissions.edit),
         create: !config.permissions?.create || !!can(config.permissions.create),
-        restore: !config.permissions?.restore || !!can(config.permissions.restore),
-        forceDelete: !config.permissions?.forceDelete || !!can(config.permissions.forceDelete),
+        restore:
+          !config.permissions?.restore || !!can(config.permissions.restore),
+        forceDelete:
+          !config.permissions?.forceDelete ||
+          !!can(config.permissions.forceDelete),
       },
     });
 
@@ -996,7 +1186,11 @@ export default function Bread<TData extends Record<string, unknown> = Record<str
     getSortedRowModel: getSortedRowModel(),
     onSortingChange: (updater) => {
       const next = typeof updater === "function" ? updater(sorting) : updater;
-      if (config.serverSorting) changeParams({ sort: next[0]?.id || "", direction: next[0] ? (next[0].desc ? "desc" : "asc") : "" });
+      if (config.serverSorting)
+        changeParams({
+          sort: next[0]?.id || "",
+          direction: next[0] ? (next[0].desc ? "desc" : "asc") : "",
+        });
       else setLocalSorting(next);
     },
     enableMultiSort: false,
@@ -1034,13 +1228,22 @@ export default function Bread<TData extends Record<string, unknown> = Record<str
   const selectedCount = selectedRows.length;
   const selectedRecords = selectedRows.map((row) => row.original);
   const availableBulkActions = (config.bulkActions || []).filter((action) => {
-    const permission = config.permissions?.[breadActionPermission(action.action)];
-    return (!permission || can(permission)) && breadActionIds(selectedRecords, action.action, config.softDeletes?.column).length > 0;
+    const permission =
+      config.permissions?.[breadActionPermission(action.action)];
+    return (
+      (!permission || can(permission)) &&
+      breadActionIds(selectedRecords, action.action, config.softDeletes?.column)
+        .length > 0
+    );
   });
 
   const handleBulkAction = React.useCallback(
     async (action: NonNullable<typeof config.bulkActions>[0]) => {
-      const selectedIds = breadActionIds(selectedRecords, action.action, config.softDeletes?.column);
+      const selectedIds = breadActionIds(
+        selectedRecords,
+        action.action,
+        config.softDeletes?.column,
+      );
       if (selectedIds.length === 0 || isBulkPending) return;
 
       const call = async () => {
@@ -1059,8 +1262,12 @@ export default function Bread<TData extends Record<string, unknown> = Record<str
         const trash = !!config.softDeletes && action.action === "delete";
         const name = config.title || config.name;
         fireAlert({
-          title: trash ? `Move ${name.toLowerCase()} to trash?` : `Permanently delete ${name.toLowerCase()}?`,
-          description: trash ? `${selectedIds.length} selected records will move to the trash. You can restore them later.` : `${selectedIds.length} selected records and their files will be permanently deleted. This cannot be undone.`,
+          title: trash
+            ? `Move ${name.toLowerCase()} to trash?`
+            : `Permanently delete ${name.toLowerCase()}?`,
+          description: trash
+            ? `${selectedIds.length} selected records will move to the trash. You can restore them later.`
+            : `${selectedIds.length} selected records and their files will be permanently deleted. This cannot be undone.`,
           confirmText: trash ? "Move to trash" : "Delete permanently",
           cancelText: "Cancel",
           onConfirm: () => call(),
@@ -1113,12 +1320,26 @@ export default function Bread<TData extends Record<string, unknown> = Record<str
             {config.softDeletes && (
               <Select
                 value={trashScope}
-                onValueChange={(value) => changeParams({ trashed: value === "without" ? "" : value })}
+                onValueChange={(value) =>
+                  changeParams({ trashed: value === "without" ? "" : value })
+                }
                 disabled={isLoading || isBulkPending}
               >
-                <SelectTrigger className="h-8.5 w-auto shrink-0 gap-2 text-sm" aria-label="Trash view">
-                  <Trash2 className="size-3.5 text-muted-foreground" aria-hidden="true" />
-                  <SelectValue>{trashScope === "only" ? "Trashed" : trashScope === "with" ? "All" : "Active"}</SelectValue>
+                <SelectTrigger
+                  className="h-8.5 w-auto shrink-0 gap-2 text-sm"
+                  aria-label="Trash view"
+                >
+                  <Trash2
+                    className="size-3.5 text-muted-foreground"
+                    aria-hidden="true"
+                  />
+                  <SelectValue>
+                    {trashScope === "only"
+                      ? "Trashed"
+                      : trashScope === "with"
+                        ? "All"
+                        : "Active"}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="without">Without trashed</SelectItem>
@@ -1498,7 +1719,13 @@ export default function Bread<TData extends Record<string, unknown> = Record<str
             <div className="flex flex-wrap items-center gap-3 p-3 bg-muted/50 rounded-lg border">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="default" size="sm" disabled={isBulkPending || availableBulkActions.length === 0}>
+                  <Button
+                    variant="default"
+                    size="sm"
+                    disabled={
+                      isBulkPending || availableBulkActions.length === 0
+                    }
+                  >
                     <EllipsisVertical className="h-4 w-4" />
                     Bulk Actions
                     <ChevronDown className="h-4 w-4" />
@@ -1516,7 +1743,9 @@ export default function Bread<TData extends Record<string, unknown> = Record<str
                       }
                     >
                       {action.icon && action.icon}
-                      {action.label}{config.softDeletes && ` (${breadActionIds(selectedRecords, action.action, config.softDeletes.column).length})`}
+                      {action.label}
+                      {config.softDeletes &&
+                        ` (${breadActionIds(selectedRecords, action.action, config.softDeletes.column).length})`}
                     </DropdownMenuItem>
                   ))}
                 </DropdownMenuContent>
@@ -1596,24 +1825,52 @@ export default function Bread<TData extends Record<string, unknown> = Record<str
                   </TableRow>
                 ) : table.getRowModel().rows?.length ? (
                   table.getRowModel().rows.map((row) => {
-                    const trashed = !!config.softDeletes && !!row.original[config.softDeletes.column];
+                    const trashed =
+                      !!config.softDeletes &&
+                      !!row.original[config.softDeletes.column];
                     const cells = row.getVisibleCells();
-                    const badgeCell = cells.find((cell) => cell.column.id === config.softDeletes?.badgeColumn)
-                      ?? cells.find((cell) => cell.column.id !== "select" && cell.column.id !== "actions");
+                    const badgeCell =
+                      cells.find(
+                        (cell) =>
+                          cell.column.id === config.softDeletes?.badgeColumn,
+                      ) ??
+                      cells.find(
+                        (cell) =>
+                          cell.column.id !== "select" &&
+                          cell.column.id !== "actions",
+                      );
 
                     return (
-                      <TableRow key={row.id} data-trashed={trashed || undefined} className="group data-[trashed=true]:bg-muted/40">
+                      <TableRow
+                        key={row.id}
+                        data-trashed={trashed || undefined}
+                        className="group data-[trashed=true]:bg-muted/40"
+                      >
                         {cells.map((cell) => (
                           <TableCell key={cell.id}>
                             {trashed && cell.id === badgeCell?.id ? (
                               <div className="flex items-center gap-2">
-                                {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                                <Badge variant="outline" className="shrink-0 gap-1 text-muted-foreground font-normal">
-                                  <Trash2 className="size-3" aria-hidden="true" />
+                                {flexRender(
+                                  cell.column.columnDef.cell,
+                                  cell.getContext(),
+                                )}
+                                <Badge
+                                  variant="outline"
+                                  className="shrink-0 gap-1 text-muted-foreground font-normal"
+                                >
+                                  <Trash2
+                                    className="size-3"
+                                    aria-hidden="true"
+                                  />
                                   Trashed
                                 </Badge>
                               </div>
-                            ) : flexRender(cell.column.columnDef.cell, cell.getContext())}
+                            ) : (
+                              flexRender(
+                                cell.column.columnDef.cell,
+                                cell.getContext(),
+                              )
+                            )}
                           </TableCell>
                         ))}
                       </TableRow>
@@ -1747,58 +2004,78 @@ export default function Bread<TData extends Record<string, unknown> = Record<str
         </div>
       </div>
 
-      {!config.routing?.enabled &&
-        FormFields &&
-        (
-          <BreadDrawer
-            isOpen={drawerOpen}
-            onClose={handleCloseDrawer}
-            record={selectedRecord}
-            FormFields={FormFields}
-            config={config}
-            cannot={cannot}
-          />
-        )}
+      {!config.routing?.enabled && FormFields && (
+        <BreadDrawer
+          isOpen={drawerOpen}
+          onClose={handleCloseDrawer}
+          record={selectedRecord}
+          FormFields={FormFields}
+          config={config}
+          cannot={cannot}
+        />
+      )}
 
-      {        (!(permanentDelete ? config.permissions?.forceDelete : config.permissions?.delete) ||
-          can((permanentDelete ? config.permissions?.forceDelete : config.permissions?.delete)!)) && (
-          <AlertDialog
-            open={deleteDialogOpen}
-            onOpenChange={(open) => { if (!isDeleting) setDeleteDialogOpen(open); }}
-          >
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>
-                  {permanentDelete ? "Delete permanently?" : config.softDeletes ? "Move to trash?" : config?.translations?.delete || "Are you absolutely sure?"}
-                </AlertDialogTitle>
-                <AlertDialogDescription>
-                  {config.softDeletes && !permanentDelete
-                    ? `This ${config.name.toLowerCase()} will be hidden from active records. Its files will be kept, and you can restore it later.`
-                    : permanentDelete ? `This ${config.name.toLowerCase()} and its files will be permanently deleted. This cannot be undone.`
-                    : config?.translations?.delete_description || `This action cannot be undone. This will permanently delete the ${config.name.toLowerCase()} and its files.`}
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel disabled={isDeleting}>
-                  {config?.translations?.delete_no || "Cancel"}
-                </AlertDialogCancel>
-                <AlertDialogAction
-                  onClick={(event) => { event.preventDefault(); confirmDelete(); }}
-                  disabled={isDeleting}
-                >
-                  {isDeleting ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Deleting...
-                    </>
-                  ) : (
-                    permanentDelete ? "Delete permanently" : config.softDeletes ? "Move to trash" : config?.translations?.delete_yes || "Yes, Delete"
-                  )}
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        )}
+      {(!(permanentDelete
+        ? config.permissions?.forceDelete
+        : config.permissions?.delete) ||
+        can(
+          (permanentDelete
+            ? config.permissions?.forceDelete
+            : config.permissions?.delete)!,
+        )) && (
+        <AlertDialog
+          open={deleteDialogOpen}
+          onOpenChange={(open) => {
+            if (!isDeleting) setDeleteDialogOpen(open);
+          }}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>
+                {permanentDelete
+                  ? "Delete permanently?"
+                  : config.softDeletes
+                    ? "Move to trash?"
+                    : config?.translations?.delete ||
+                      "Are you absolutely sure?"}
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                {config.softDeletes && !permanentDelete
+                  ? `This ${config.name.toLowerCase()} will be hidden from active records. Its files will be kept, and you can restore it later.`
+                  : permanentDelete
+                    ? `This ${config.name.toLowerCase()} and its files will be permanently deleted. This cannot be undone.`
+                    : config?.translations?.delete_description ||
+                      `This action cannot be undone. This will permanently delete the ${config.name.toLowerCase()} and its files.`}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={isDeleting}>
+                {config?.translations?.delete_no || "Cancel"}
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={(event) => {
+                  event.preventDefault();
+                  confirmDelete();
+                }}
+                disabled={isDeleting}
+              >
+                {isDeleting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Deleting...
+                  </>
+                ) : permanentDelete ? (
+                  "Delete permanently"
+                ) : config.softDeletes ? (
+                  "Move to trash"
+                ) : (
+                  config?.translations?.delete_yes || "Yes, Delete"
+                )}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
     </>
   );
 }

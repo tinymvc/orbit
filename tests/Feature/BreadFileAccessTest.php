@@ -3,8 +3,8 @@
 namespace Tests\Feature;
 
 use App\Models\Post;
-use App\Services\Bread\Form\FileUpload;
-use App\Services\Bread\ResourceController;
+use App\Services\Orbit\Bread\Form\FileUpload;
+use App\Services\Orbit\Bread\ResourceController;
 use Spark\Facades\Storage;
 use Tests\DatabaseTestCase;
 use Tests\Fixtures\UploadResource;

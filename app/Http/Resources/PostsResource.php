@@ -4,9 +4,10 @@ namespace App\Http\Resources;
 
 use App\Models\Category;
 use App\Models\Post;
-use App\Services\Bread\Form;
-use App\Services\Bread\Resource;
-use App\Services\Bread\Table;
+use App\Services\Orbit\Bread\Form;
+use App\Services\Orbit\Bread\Resource;
+use App\Services\Orbit\Bread\Table;
+use function array_key_exists;
 
 /**
  * Posts BREAD Resource
@@ -237,10 +238,11 @@ class PostsResource extends Resource
 
     public static function mutateBeforeCreate(array $data): array
     {
-        if (empty($data['published_at']))
-            unset($data['published_at']);
-        if (empty($data['scheduled_at']))
-            unset($data['scheduled_at']);
+        foreach (['published_at', 'scheduled_at'] as $field) {
+            if (array_key_exists($field, $data) && empty($data[$field])) {
+                $data[$field] = null;
+            }
+        }
 
         return $data;
     }

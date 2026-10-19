@@ -1,39 +1,44 @@
 <?php
 
-/**
- * This file contains the route definitions for the web application.
- *
- * The routes defined in this file are used to map URLs to controller
- * actions or views. The routes are defined using the "router()" function,
- * which is a facade for the Hyper\Router class.
- */
-
 use App\Http\Controllers\{
     AuthController,
     DashboardController,
     NotificationsController,
     RolesController,
-    UsersController
+    UsersController,
 };
 use App\Http\Resources\{
     CategoriesResource,
-    PostsResource
+    PostsResource,
 };
-use App\Services\Bread\ResourceController;
+use App\Services\Orbit\Bread\ResourceController;
 use Spark\Facades\Route;
 
 Route::group(function () {
-    Route::match(['get', 'post'], '/login', [AuthController::class, 'login'])
+    Route::get('/login', [AuthController::class, 'login'])
         ->name('login');
 
-    Route::match(['get', 'post'], '/forgot-password', [AuthController::class, 'forgotPassword'])
+    Route::get('/forgot-password', [AuthController::class, 'forgotPassword'])
         ->name('password.forgot');
 
-    Route::match(['get', 'post'], '/reset-password', [AuthController::class, 'resetPassword'])
+    Route::get('/reset-password', [AuthController::class, 'resetPassword'])
         ->name('password.reset');
 
+    Route::post('/login', [AuthController::class, 'authenticate'])
+        ->middleware('throttle:5,1,login')
+        ->name('login.authenticate');
+
+    Route::post('/forgot-password', [AuthController::class, 'sendResetLink'])
+        ->middleware('throttle:3,1,password-reset')
+        ->name('password.email');
+
+    Route::post('/reset-password', [AuthController::class, 'updatePassword'])
+        ->middleware('throttle:5,1,password-reset')
+        ->name('password.update');
+
     Route::get('/email-verification', [AuthController::class, 'emailVerification'])
-        ->name('email.verification');
+        ->name('email.verification')
+        ->middleware('throttle:10,1,email-verification');
 })
     ->middleware('guest')
     ->prefix('admin');
@@ -51,10 +56,17 @@ Route::group(function () {
     Route::post('/notifications', NotificationsController::class)
         ->name('notifications');
 
-    Route::match(['get', 'post'], '/profile', [AuthController::class, 'profile'])
+    Route::get('/profile', [AuthController::class, 'profile'])
         ->name('profile');
 
-    Route::post('users/bulk-action', [UsersController::class, 'bulkAction']);
+    Route::post('/profile', [AuthController::class, 'updateProfile'])
+        ->middleware('throttle:10,1,profile')
+        ->name('profile.update');
+
+    Route::post('users/bulk-action', [UsersController::class, 'bulkAction'])
+        ->middleware('throttle:5,1,user-actions')
+        ->name('users.actions');
+
     Route::resource('users', UsersController::class)
         ->except(['create', 'edit', 'show'])
         ->name('users');
@@ -67,7 +79,7 @@ Route::group(function () {
     ResourceController::routes(PostsResource::class);
     ResourceController::routes(CategoriesResource::class);
 })
-    ->middleware('auth')
+    ->middleware(['auth', 'throttle:120,1,admin'])
     ->prefix('admin');
 
 Route::view('/', 'welcome')

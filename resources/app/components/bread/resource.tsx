@@ -1,3 +1,4 @@
+import { formatDate } from "@/lib/date-time";
 import * as React from "react";
 import type { Row, ColumnDef } from "@tanstack/react-table";
 import { Badge } from "@/components/ui/badge";
@@ -444,9 +445,7 @@ export function buildConfigFromSchema(
 
 // ─── Build Columns from server schema ───────────────────────────────────────
 
-export function buildColumnsFromSchema(
-  schema: ServerResourceSchema,
-): (params: {
+export function buildColumnsFromSchema(schema: ServerResourceSchema): (params: {
   handleEdit: (record: Record<string, unknown>) => void;
   handleDelete: (id: number) => void;
   handleCreate: () => void;
@@ -532,7 +531,7 @@ export function buildColumnsFromSchema(
               case "date":
                 return wrapClickToEdit(
                   <span className="text-sm text-muted-foreground">
-                    {rawValue ? String(rawValue) : "—"}
+                    {formatDate(rawValue as string | null, true)}
                   </span>,
                 );
 

@@ -1,3 +1,4 @@
+import { formatDate } from "@/lib/date-time";
 import * as React from "react";
 
 import Bread, {
@@ -512,7 +513,7 @@ const columnsCallback = ({
     header: "Updated At",
     cell: ({ row }: { row: Row<Role> }) => (
       <span className="text-sm text-muted-foreground">
-        {row.original.updated_at}
+        {formatDate(row.original.updated_at, true)}
       </span>
     ),
   },

@@ -11,7 +11,7 @@ export default function ({ children }: { children: React.ReactNode }) {
         className="h-screen overflow-hidden"
         style={
           {
-            "--sidebar-width": "calc(var(--spacing) * 72)",
+            "--sidebar-width": "calc(var(--spacing) * 62)",
             "--header-height": "calc(var(--spacing) * 12)",
           } as React.CSSProperties
         }

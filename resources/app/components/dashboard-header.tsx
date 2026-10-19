@@ -1,3 +1,4 @@
+import { parseDate } from "@/lib/date-time";
 import { useCallback, useMemo, useState } from "react";
 import { CalendarIcon, ChevronRight } from "lucide-react";
 import { format, subDays } from "date-fns";
@@ -31,8 +32,8 @@ export function DashboardHeader({
   description,
   dateRange,
 }: DashboardHeaderProps) {
-  const initialFrom = dateRange?.from ? new Date(dateRange.from) : undefined;
-  const initialTo = dateRange?.to ? new Date(dateRange.to) : undefined;
+  const initialFrom = parseDate(dateRange?.from) ?? undefined;
+  const initialTo = parseDate(dateRange?.to) ?? undefined;
 
   const [range, setRange] = useState<{ from?: Date; to?: Date }>({
     from: initialFrom,

@@ -58,7 +58,7 @@ final class BreadTest extends DatabaseTestCase
     public function test_resource_sort_direction_and_update_hooks_are_honored(): void
     {
         $this->signIn();
-        \App\Services\Bread\ResourceController::routes(\Tests\Fixtures\HookedCategoryResource::class)
+        \App\Services\Orbit\Bread\ResourceController::routes(\Tests\Fixtures\HookedCategoryResource::class)
             ->prefix('admin')->middleware('auth');
         $this->post('/admin/hooked-categories', ['name' => 'Zulu', 'slug' => 'zulu'])->assertStatus(302);
         $category = Category::first();

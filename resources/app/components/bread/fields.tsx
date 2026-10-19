@@ -463,13 +463,22 @@ interface AutoFormFieldsProps {
 export const AutoFormFields = React.memo<AutoFormFieldsProps>(
   ({ fields, formData, isEdit, handleChange, formErrors }) => {
     // Filter fields based on visibility
-    const visibleFields = fields.map((field) => ({ ...field, fileUrls: (formData.__fileUrls as Record<string, Record<string, string>> | undefined)?.[field.name] })).filter((f) => {
-      if (f.hidden) return false;
-      if (f.createOnly && isEdit) return false;
-      if (f.editOnly && !isEdit) return false;
-      if (f.visible && !f.visible(formData, isEdit)) return false;
-      return true;
-    });
+    const visibleFields = fields
+      .map((field) => ({
+        ...field,
+        fileUrls: (
+          formData.__fileUrls as
+            | Record<string, Record<string, string>>
+            | undefined
+        )?.[field.name],
+      }))
+      .filter((f) => {
+        if (f.hidden) return false;
+        if (f.createOnly && isEdit) return false;
+        if (f.editOnly && !isEdit) return false;
+        if (f.visible && !f.visible(formData, isEdit)) return false;
+        return true;
+      });
 
     // Auto-slug handling
     const slugFields = visibleFields.filter(

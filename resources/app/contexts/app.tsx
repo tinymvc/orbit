@@ -51,7 +51,10 @@ export const useApp = (): AppContextValue => {
 
 // Inner provider that uses usePage (must be inside Inertia's App component)
 const AppContextProvider = ({ children }: { children: ReactNode }) => {
-  const { props, flash } = usePage<{ app: AppConfig; auth: { user: User | null } }>();
+  const { props, flash } = usePage<{
+    app: AppConfig;
+    auth: { user: User | null };
+  }>();
 
   const [alert, setAlert] = useState<AlertState>({
     open: false,

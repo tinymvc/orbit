@@ -1,3 +1,4 @@
+import { formatDate } from "@/lib/date-time";
 import * as React from "react";
 
 import Bread, {
@@ -305,7 +306,7 @@ const columnsCallback =
       header: "Joined At",
       cell: ({ row }: { row: Row<User> }) => (
         <span className="text-sm text-muted-foreground">
-          {row.original.created_at}
+          {formatDate(row.original.created_at, true)}
         </span>
       ),
     },

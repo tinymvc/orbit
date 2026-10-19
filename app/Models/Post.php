@@ -13,6 +13,11 @@ class Post extends Model
     public const STATUS_ARCHIVED = 'archived';
     public const STATUS_SCHEDULED = 'scheduled';
 
+    protected array $casts = [
+        'published_at' => 'datetime',
+        'scheduled_at' => 'datetime',
+    ];
+
     public function user(): \Spark\Database\Relation\BelongsTo
     {
         return $this->belongsTo(User::class);
@@ -21,18 +26,5 @@ class Post extends Model
     public function categories(): \Spark\Database\Relation\BelongsToMany
     {
         return $this->belongsToMany(Category::class);
-    }
-
-    public function getCreatedAtAttribute($value): string
-    {
-        return carbon($value)->toFormattedDateTimeString();
-    }
-
-    public function getPublishedAtAttribute($value): null|string
-    {
-        if (empty($value)) {
-            return null;
-        }
-        return carbon($value)->toFormattedDateTimeString();
     }
 }

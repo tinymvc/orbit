@@ -2,9 +2,9 @@
 
 namespace Tests\Unit;
 
-use App\Services\Dashboard\Charts;
-use App\Services\Dashboard\Dashboard;
-use App\Services\Dashboard\Stats;
+use App\Services\Orbit\Dashboard\Charts;
+use App\Services\Orbit\Dashboard\Dashboard;
+use App\Services\Orbit\Dashboard\Stats;
 use Spark\Testing\TestCase;
 
 final class DashboardTest extends TestCase
@@ -12,9 +12,14 @@ final class DashboardTest extends TestCase
     public function test_all_chart_types_serialize_with_stats_and_date_ranges(): void
     {
         $charts = [];
-        foreach ([Charts\AreaChart::class => 'area', Charts\BarChart::class => 'bar',
-            Charts\LineChart::class => 'line', Charts\PieChart::class => 'pie',
-            Charts\RadarChart::class => 'radar', Charts\RadialChart::class => 'radial'] as $class => $type) {
+        foreach ([
+            Charts\AreaChart::class => 'area',
+            Charts\BarChart::class => 'bar',
+            Charts\LineChart::class => 'line',
+            Charts\PieChart::class => 'pie',
+            Charts\RadarChart::class => 'radar',
+            Charts\RadialChart::class => 'radial'
+        ] as $class => $type) {
             $chart = $class::make('Revenue')->data([['month' => 'Jan', 'sales' => 10]])
                 ->dataKeys(['sales'])->xAxisKey('month')->colors(['#123456'])->height(200)->colSpan(2);
             $this->assertSame($type, $chart->toArray()['type']);

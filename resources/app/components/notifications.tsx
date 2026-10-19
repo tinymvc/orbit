@@ -1,3 +1,4 @@
+import { formatDate } from "@/lib/date-time";
 import { useState, useCallback, useEffect, useRef } from "react";
 import {
   Bell,
@@ -403,7 +404,7 @@ export function Notifications() {
                         </span>
                       </div>
                       <p className="text-xs text-muted-foreground whitespace-nowrap">
-                        {notification.created_at}
+                        {formatDate(notification.created_at, true)}
                       </p>
                       {notification.description && (
                         <p className="text-sm text-muted-foreground leading-snug">

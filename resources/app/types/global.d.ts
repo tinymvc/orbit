@@ -3,7 +3,6 @@ export {};
 declare global {
   interface AppConfig {
     name: string;
-    timezone: string;
     locale: string;
     [key: string]: any;
   }

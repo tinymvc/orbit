@@ -3,8 +3,8 @@
 namespace Tests\Fixtures;
 
 use App\Models\Post;
-use App\Services\Bread\Form\FileUpload;
-use App\Services\Bread\Resource;
+use App\Services\Orbit\Bread\Form\FileUpload;
+use App\Services\Orbit\Bread\Resource;
 
 class UploadResource extends Resource
 {

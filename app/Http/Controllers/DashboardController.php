@@ -2,14 +2,14 @@
 
 namespace App\Http\Controllers;
 
-use App\Services\Dashboard\Dashboard;
-use App\Services\Dashboard\Stats;
-use App\Services\Dashboard\Charts\AreaChart;
-use App\Services\Dashboard\Charts\BarChart;
-use App\Services\Dashboard\Charts\LineChart;
-use App\Services\Dashboard\Charts\PieChart;
-use App\Services\Dashboard\Charts\RadarChart;
-use App\Services\Dashboard\Charts\RadialChart;
+use App\Services\Orbit\Dashboard\Dashboard;
+use App\Services\Orbit\Dashboard\Stats;
+use App\Services\Orbit\Dashboard\Charts\AreaChart;
+use App\Services\Orbit\Dashboard\Charts\BarChart;
+use App\Services\Orbit\Dashboard\Charts\LineChart;
+use App\Services\Orbit\Dashboard\Charts\PieChart;
+use App\Services\Orbit\Dashboard\Charts\RadarChart;
+use App\Services\Orbit\Dashboard\Charts\RadialChart;
 use Spark\Http\Request;
 
 class DashboardController extends Controller
@@ -17,8 +17,13 @@ class DashboardController extends Controller
     public function overview(Request $request)
     {
         // Read optional date range from query parameters
-        $from = $request->input('from');
-        $to = $request->input('to');
+        $input = $request->validate([
+            'from' => 'nullable|date_format:Y-m-d',
+            'to' => 'nullable|date_format:Y-m-d',
+        ]);
+
+        $from = $input['from'];
+        $to = $input['to'];
 
         // In a real application, you would fetch and calculate these values based on the selected date range.
         // For this example, we'll use static data to demonstrate the dashboard structure.

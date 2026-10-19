@@ -266,7 +266,7 @@ The BREAD (Browse, Read, Edit, Add, Delete) module is the heart of Orbit's admin
 
 ### How It Works
 
-1. You create a **Resource class** (extends `App\Services\Bread\Resource`)
+1. You create a **Resource class** (extends `App\Services\Orbit\Bread\Resource`)
 2. Define your **form fields**, **table columns**, **filters**, and **bulk actions**
 3. Register the route in `routes/web.php` with one line
 4. Add a menu entry in the React sidebar config
@@ -300,9 +300,9 @@ Every resource has a set of static properties that control its behavior:
 namespace App\Http\Resources;
 
 use App\Models\Product;
-use App\Services\Bread\Form;
-use App\Services\Bread\Resource;
-use App\Services\Bread\Table;
+use App\Services\Orbit\Bread\Form;
+use App\Services\Orbit\Bread\Resource;
+use App\Services\Orbit\Bread\Table;
 
 class ProductsResource extends Resource
 {
@@ -933,7 +933,7 @@ In `routes/web.php`, register your resource with a single line inside the authen
 
 ```php
 use App\Http\Resources\ProductsResource;
-use App\Services\Bread\ResourceController;
+use App\Services\Orbit\Bread\ResourceController;
 
 Route::group(function () {
     // ... existing routes ...
@@ -966,9 +966,9 @@ namespace App\Http\Resources;
 
 use App\Models\Category;
 use App\Models\Post;
-use App\Services\Bread\Form;
-use App\Services\Bread\Resource;
-use App\Services\Bread\Table;
+use App\Services\Orbit\Bread\Form;
+use App\Services\Orbit\Bread\Resource;
+use App\Services\Orbit\Bread\Table;
 
 class PostsResource extends Resource
 {
@@ -1108,7 +1108,7 @@ The Dashboard module provides a fluent PHP API for building analytics dashboards
 Stats cards display key metrics at the top of the dashboard:
 
 ```php
-use App\Services\Dashboard\Stats;
+use App\Services\Orbit\Dashboard\Stats;
 
 Stats::make('Total Revenue')
     ->value('$1,250.00')       // Display value (formatted string)
@@ -1134,7 +1134,7 @@ Six chart types are available, all sharing a common fluent API:
 #### Common Chart API
 
 ```php
-use App\Services\Dashboard\Charts\BarChart;
+use App\Services\Orbit\Dashboard\Charts\BarChart;
 
 BarChart::make('Monthly Revenue')
     ->description('Revenue vs Expenses')     // Subtitle
@@ -1205,11 +1205,11 @@ The date range is sent as `?from=YYYY-MM-DD&to=YYYY-MM-DD` query parameters to t
 
 namespace App\Http\Controllers;
 
-use App\Services\Dashboard\Dashboard;
-use App\Services\Dashboard\Stats;
-use App\Services\Dashboard\Charts\AreaChart;
-use App\Services\Dashboard\Charts\BarChart;
-use App\Services\Dashboard\Charts\PieChart;
+use App\Services\Orbit\Dashboard\Dashboard;
+use App\Services\Orbit\Dashboard\Stats;
+use App\Services\Orbit\Dashboard\Charts\AreaChart;
+use App\Services\Orbit\Dashboard\Charts\BarChart;
+use App\Services\Orbit\Dashboard\Charts\PieChart;
 use Spark\Http\Request;
 
 class DashboardController extends Controller
@@ -1489,7 +1489,7 @@ clearing the current user's notifications. There is no standalone notifications
 page. `npm test` covers the feed client and read-before-navigation behavior.
 
 BREAD and Dashboard now live under `app/Services`, with namespaces
-`App\Services\Bread` and `App\Services\Dashboard`. After upgrading an existing
+`App\Services\Orbit\Bread` and `App\Services\Orbit\Dashboard`. After upgrading an existing
 checkout, run `composer dump-autoload` and `php spark config:clear` to refresh
 class maps and cached configuration. Orbit retains its redirecting auth/guest
 middleware. The Inertia integration uses the adapter's `Inertia::once`,

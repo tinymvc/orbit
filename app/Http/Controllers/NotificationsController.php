@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Notification;
+use App\Http\Requests\NotificationActionRequest;
+use Spark\Facades\Auth;
 use Spark\Http\Request;
 use function array_slice;
 use function count;
@@ -18,7 +20,7 @@ class NotificationsController extends Controller
             'before' => 'nullable|integer|min:1|regex:/^[1-9][0-9]*$/'
         ]);
 
-        $query = Notification::where('user_id', user('id'))
+        $query = Notification::where('user_id', Auth::id())
             ->latest('id');
 
         if ($input['before'] !== null) {
@@ -37,19 +39,16 @@ class NotificationsController extends Controller
         ]);
     }
 
-    public function __invoke(Request $request)
+    public function __invoke(NotificationActionRequest $request)
     {
-        $input = $request->validate([
-            'action' => 'required|string|in:mark-read,mark-all-read,remove,clear',
-        ]);
+        $input = $request->validated();
 
         $action = $input['action'];
-        $userId = user('id');
+        $userId = Auth::id();
         $readAt = null;
 
         if (in_array($action, ['mark-read', 'remove'], true)) {
-            $id = $request->validate(['id' => 'required|integer|min:1|regex:/^[1-9][0-9]*$/'])
-                ->number('id');
+            $id = $input->number('id');
 
             $notification = Notification::where('user_id', $userId)
                 ->where('id', $id)
@@ -81,6 +80,6 @@ class NotificationsController extends Controller
 
     private function unreadCount(): int
     {
-        return Notification::where('user_id', user('id'))->whereNull('read_at')->count();
+        return Notification::where('user_id', Auth::id())->whereNull('read_at')->count();
     }
 }
