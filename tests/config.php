@@ -9,41 +9,36 @@ if (!$storage) {
 return [
     'app' => [
         'debug' => false,
-        'key' => '70e313f57a932c7388cae00b80a11912',
+        'env' => 'testing',
+        'key' => str_repeat('a', 32),
         'timezone' => 'UTC',
         'url' => 'http://localhost:8080',
         'storage_dir' => $storage,
         'temp_dir' => "$storage/temp",
         'upload_dir' => "$storage/uploads",
     ],
+    'database' => [
+        'default' => 'sqlite',
+        'connections' => ['sqlite' => ['driver' => 'sqlite', 'file' => ':memory:']],
+    ],
     'storage' => [
         'default' => 'local',
         'disks' => [
-            'local' => ['driver' => 'local', 'root' => "$storage/app"],
-            'public' => ['driver' => 'local', 'root' => "$storage/uploads", 'url' => '/uploads'],
+            'local' => ['root' => "$storage/app/private"],
+            'public' => ['root' => "$storage/app/public"],
         ],
     ],
-    'database' => [
-        'driver' => 'sqlite',
-        'connections' => ['sqlite' => ['file' => ':memory:']],
-    ],
+    'mail' => ['transport' => 'log'],
     'cache' => [
         'default' => 'file',
-        'connections' => [
-            'file' => [
-                'driver' => 'file',
-                'path' => "$storage/cache",
-                'lock_path' => "$storage/locks",
-            ],
-        ],
+        'connections' => ['file' => ['path' => "$storage/cache", 'lock_path' => "$storage/locks"]],
     ],
     'queue' => [
         'default' => 'file',
-        'connections' => [
-            'file' => [
-                'driver' => 'file',
-                'path' => "$storage/queue",
-            ],
-        ],
+        'connections' => ['file' => ['path' => "$storage/queue"]],
+    ],
+    'session' => [
+        'default' => 'file',
+        'connections' => ['file' => ['path' => "$storage/sessions"]],
     ],
 ];
